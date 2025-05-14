@@ -18,7 +18,29 @@ import {
   Snackbar,
   CircularProgress,
   Autocomplete,
+  Tooltip,
+  IconButton,
+  Card,
+  CardContent,
+  CardHeader,
+  Avatar,
+  InputAdornment,
 } from '@mui/material';
+import {
+  Store as StoreIcon,
+  AccountCircle as AccountIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon,
+  Receipt as ReceiptIcon,
+  Schedule as ScheduleIcon,
+  MonetizationOn as MoneyIcon,
+  Notifications as NotificationsIcon,
+  Backup as BackupIcon,
+  Restore as RestoreIcon,
+  Delete as DeleteIcon,
+  Refresh as RefreshIcon,
+  Info as InfoIcon,
+} from '@mui/icons-material';
 import { saveShopSettings, getShopSettings, getAllShops } from '../firebase/services';
 
 function Settings() {
@@ -240,8 +262,9 @@ function Settings() {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>
+    <Box sx={{ maxWidth: 1200, margin: '0 auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <StoreIcon fontSize="large" color="primary" />
         सेटिंग्ज
       </Typography>
 
@@ -251,302 +274,434 @@ function Settings() {
         </Alert>
       )}
 
-      <Grid container spacing={3}>
+      <Grid container spacing={4}>
         {/* Shop Details Section */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Shop Details
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  freeSolo
-                  options={shops.map(shop => shop.name)}
-                  value={settings.shopName}
-                  onChange={(event, newValue) => {
-                    handleSettingChange({
-                      target: {
-                        name: 'shopName',
-                        value: newValue || ''
-                      }
-                    });
-                  }}
-                  onInputChange={(event, newValue) => {
-                    handleSettingChange({
-                      target: {
-                        name: 'shopName',
-                        value: newValue || ''
-                      }
-                    });
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      fullWidth
-                      label="दुकानाचे नाव"
-                      name="shopName"
-                      required
-                      placeholder="नवीन दुकानाचे नाव टाका किंवा विद्यमान दुकान निवडा"
-                    />
-                  )}
-                />
+          <Card elevation={2}>
+            <CardHeader
+              avatar={<Avatar sx={{ bgcolor: 'primary.main' }}><StoreIcon /></Avatar>}
+              title="दुकान माहिती"
+              subheader="आपल्या दुकानाची मूलभूत माहिती येथे अपडेट करा"
+            />
+            <CardContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <Autocomplete
+                    freeSolo
+                    options={shops.map(shop => shop.name)}
+                    value={settings.shopName}
+                    onChange={(event, newValue) => {
+                      handleSettingChange({
+                        target: {
+                          name: 'shopName',
+                          value: newValue || ''
+                        }
+                      });
+                    }}
+                    onInputChange={(event, newValue) => {
+                      handleSettingChange({
+                        target: {
+                          name: 'shopName',
+                          value: newValue || ''
+                        }
+                      });
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        fullWidth
+                        label="दुकानाचे नाव"
+                        name="shopName"
+                        required
+                        placeholder="नवीन दुकानाचे नाव टाका किंवा विद्यमान दुकान निवडा"
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <StoreIcon color="action" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="मालकाचे नाव"
+                    name="ownerName"
+                    value={settings.ownerName}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <AccountIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="पत्ता"
+                    name="address"
+                    value={settings.address}
+                    onChange={handleSettingChange}
+                    multiline
+                    rows={3}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="फोन नंबर"
+                    name="phone"
+                    value={settings.phone}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PhoneIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="ईमेल"
+                    name="email"
+                    type="email"
+                    value={settings.email}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="जीएसटी नंबर"
+                    name="gstNumber"
+                    value={settings.gstNumber}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ReceiptIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="लायसन्स नंबर"
+                    name="licenseNumber"
+                    value={settings.licenseNumber}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ReceiptIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="उघडण्याची वेळ"
+                    name="openingTime"
+                    type="time"
+                    value={settings.openingTime}
+                    onChange={handleSettingChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    inputProps={{
+                      step: 300,
+                    }}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ScheduleIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="बंद होण्याची वेळ"
+                    name="closingTime"
+                    type="time"
+                    value={settings.closingTime}
+                    onChange={handleSettingChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    inputProps={{
+                      step: 300,
+                    }}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ScheduleIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="मालकाचे नाव"
-                  name="ownerName"
-                  value={settings.ownerName}
-                  onChange={handleSettingChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="पत्ता"
-                  name="address"
-                  value={settings.address}
-                  onChange={handleSettingChange}
-                  multiline
-                  rows={3}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="फोन नंबर"
-                  name="phone"
-                  value={settings.phone}
-                  onChange={handleSettingChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="ईमेल"
-                  name="email"
-                  type="email"
-                  value={settings.email}
-                  onChange={handleSettingChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="जीएसटी नंबर"
-                  name="gstNumber"
-                  value={settings.gstNumber}
-                  onChange={handleSettingChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="लायसन्स नंबर"
-                  name="licenseNumber"
-                  value={settings.licenseNumber}
-                  onChange={handleSettingChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="कामाचे तास"
-                  name="openingTime"
-                  type="time"
-                  value={settings.openingTime}
-                  onChange={handleSettingChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  inputProps={{
-                    step: 300, // 5 min
-                  }}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="कामाचे तास"
-                  name="closingTime"
-                  type="time"
-                  value={settings.closingTime}
-                  onChange={handleSettingChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  inputProps={{
-                    step: 300, // 5 min
-                  }}
-                  required
-                />
-              </Grid>
-            </Grid>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Loan Settings
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Gold Rate (per gram)"
-                  name="goldRate"
-                  type="number"
-                  value={settings.goldRate}
-                  onChange={handleSettingChange}
-                />
+          <Card elevation={2}>
+            <CardHeader
+              avatar={<Avatar sx={{ bgcolor: 'success.main' }}><MoneyIcon /></Avatar>}
+              title="कर्ज सेटिंग्ज"
+              subheader="सोने आणि कर्ज संबंधित सेटिंग्ज"
+            />
+            <CardContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="सोन्याचा दर (प्रति ग्राम)"
+                    name="goldRate"
+                    type="number"
+                    value={settings.goldRate}
+                    onChange={handleSettingChange}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MoneyIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="व्याज दर (%)"
+                    name="interestRate"
+                    type="number"
+                    value={settings.interestRate}
+                    onChange={handleSettingChange}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MoneyIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="कमाल कर्ज टक्केवारी"
+                    name="maxLoanPercentage"
+                    type="number"
+                    value={settings.maxLoanPercentage}
+                    onChange={handleSettingChange}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MoneyIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Interest Rate (%)"
-                  name="interestRate"
-                  type="number"
-                  value={settings.interestRate}
-                  onChange={handleSettingChange}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Maximum Loan Percentage"
-                  name="maxLoanPercentage"
-                  type="number"
-                  value={settings.maxLoanPercentage}
-                  onChange={handleSettingChange}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              System Settings
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={settings.enableNotifications}
-                      onChange={handleSettingChange}
-                      name="enableNotifications"
-                    />
-                  }
-                  label="Enable Notifications"
-                />
+          <Card elevation={2}>
+            <CardHeader
+              avatar={<Avatar sx={{ bgcolor: 'info.main' }}><NotificationsIcon /></Avatar>}
+              title="सिस्टम सेटिंग्ज"
+              subheader="सिस्टम आणि सूचना सेटिंग्ज"
+            />
+            <CardContent>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={settings.enableNotifications}
+                        onChange={handleSettingChange}
+                        name="enableNotifications"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        सूचना सक्षम करा
+                        <Tooltip title="सिस्टम सूचना आणि अलर्ट्स सक्षम करा">
+                          <IconButton size="small">
+                            <InfoIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={settings.enableAutoReminders}
+                        onChange={handleSettingChange}
+                        name="enableAutoReminders"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        स्वयं रिमाइंडर सक्षम करा
+                        <Tooltip title="कर्ज परतफेड आणि इतर महत्वाच्या तारखांसाठी स्वयं रिमाइंडर">
+                          <IconButton size="small">
+                            <InfoIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    select
+                    label="बॅकअप वारंवारता"
+                    name="backupFrequency"
+                    value={settings.backupFrequency}
+                    onChange={handleSettingChange}
+                    SelectProps={{
+                      native: true,
+                    }}
+                  >
+                    <option value="daily">दररोज</option>
+                    <option value="weekly">साप्ताहिक</option>
+                    <option value="monthly">मासिक</option>
+                  </TextField>
+                </Grid>
               </Grid>
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={settings.enableAutoReminders}
-                      onChange={handleSettingChange}
-                      name="enableAutoReminders"
-                    />
-                  }
-                  label="Enable Auto Reminders"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Backup Frequency"
-                  name="backupFrequency"
-                  value={settings.backupFrequency}
-                  onChange={handleSettingChange}
-                  SelectProps={{
-                    native: true,
-                  }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </TextField>
-              </Grid>
-            </Grid>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
 
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Maintenance
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => handleDialogOpen('backup')}
-                >
-                  Create Backup
-                </Button>
+          <Card elevation={2}>
+            <CardHeader
+              avatar={<Avatar sx={{ bgcolor: 'warning.main' }}><BackupIcon /></Avatar>}
+              title="मेंटेनन्स"
+              subheader="सिस्टम मेंटेनन्स आणि बॅकअप"
+            />
+            <CardContent>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => handleDialogOpen('backup')}
+                    startIcon={<BackupIcon />}
+                  >
+                    बॅकअप तयार करा
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => handleDialogOpen('restore')}
+                    startIcon={<RestoreIcon />}
+                  >
+                    बॅकअप पुनर्संचयित करा
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleDialogOpen('reset')}
+                    startIcon={<RefreshIcon />}
+                  >
+                    सिस्टम रीसेट करा
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleDialogOpen('clear')}
+                    startIcon={<DeleteIcon />}
+                  >
+                    सर्व डेटा हटवा
+                  </Button>
+                </Grid>
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => handleDialogOpen('restore')}
-                >
-                  Restore Backup
-                </Button>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="error"
-                  onClick={() => handleDialogOpen('reset')}
-                >
-                  Reset System
-                </Button>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="error"
-                  onClick={() => handleDialogOpen('clear')}
-                >
-                  Clear All Data
-                </Button>
-              </Grid>
-            </Grid>
-          </Paper>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Button 
+          variant="outlined"
+          onClick={() => window.history.back()}
+        >
+          मागे जा
+        </Button>
         <Button 
           variant="contained" 
           onClick={handleSaveSettings}
           disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} /> : null}
         >
-          {loading ? <CircularProgress size={24} /> : 'सेव्ह करा'}
+          {loading ? 'सेव्ह करत आहे...' : 'सेव्ह करा'}
         </Button>
       </Box>
 
-      <Dialog open={openDialog} onClose={handleDialogClose}>
-        <DialogTitle>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {dialogType === 'backup' && <BackupIcon color="primary" />}
+          {dialogType === 'restore' && <RestoreIcon color="primary" />}
+          {dialogType === 'reset' && <RefreshIcon color="error" />}
+          {dialogType === 'clear' && <DeleteIcon color="error" />}
           {dialogType.charAt(0).toUpperCase() + dialogType.slice(1)} Confirmation
         </DialogTitle>
         <DialogContent>
@@ -556,7 +711,11 @@ function Settings() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button onClick={handleConfirmAction} color="error" variant="contained">
+          <Button 
+            onClick={handleConfirmAction} 
+            color={dialogType === 'backup' || dialogType === 'restore' ? 'primary' : 'error'} 
+            variant="contained"
+          >
             Confirm
           </Button>
         </DialogActions>
@@ -566,6 +725,7 @@ function Settings() {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
           onClose={handleCloseSnackbar}

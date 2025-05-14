@@ -111,7 +111,16 @@ const charMap = {
   'kale': 'काळे',
   'suryawanshi': 'सूर्यवंशी',
   'dhumal': 'धुमाळ',
-  'khandekar': 'खंडेकर'
+  'khandekar': 'खंडेकर',
+  'atharv': 'अथर्व',
+  'atharva': 'अथर्व',
+  'atharvaa': 'अथर्वा',
+  'atharvaaa': 'अथर्वा',
+  'atharvaaaa': 'अथर्वा',
+  'atharvaaaaa': 'अथर्वा',
+  'sujata': 'सुजाता',
+  'sujatha': 'सुजाता',
+  'sujataa': 'सुजाता'
 };
 
 // Common name prefixes and suffixes
@@ -136,55 +145,139 @@ const namePrefixes = {
   'madam': 'मॅडम'
 };
 
+// Common English to Marathi name mapping
+const nameMap = {
+  'patil': 'पाटील',
+  'desai': 'देशाई',
+  'joshi': 'जोशी',
+  'kulkarni': 'कुलकर्णी',
+  'shinde': 'शिंदे',
+  'gaikwad': 'गायकवाड',
+  'jadhav': 'जाधव',
+  'more': 'मोरे',
+  'chavan': 'चव्हाण',
+  'pawar': 'पवार',
+  'thakur': 'ठाकूर',
+  'kadam': 'कदम',
+  'sawant': 'सावंत',
+  'mohite': 'मोहिते',
+  'salunkhe': 'साळुंखे',
+  'kamble': 'कांबळे',
+  'bhosale': 'भोसले',
+  'kale': 'काळे',
+  'suryawanshi': 'सूर्यवंशी',
+  'dhumal': 'धुमाळ',
+  'khandekar': 'खंडेकर',
+  'atharv': 'अथर्व',
+  'atharva': 'अथर्व',
+  'atharvaa': 'अथर्वा',
+  'atharvaaa': 'अथर्वा',
+  'atharvaaaa': 'अथर्वा',
+  'atharvaaaaa': 'अथर्वा',
+  'sujata': 'सुजाता',
+  'sujatha': 'सुजाता',
+  'sujataa': 'सुजाता'
+  // Add more names as needed
+};
+
+// Special patterns for common name endings
+const specialPatterns = {
+  'ata': 'ता',
+  'atha': 'ता',
+  'ataa': 'ता',
+  'ataaa': 'ता',
+  'ataaaa': 'ता',
+  'ataaaaa': 'ता'
+};
+
 // Convert English numbers to Marathi
 export const toMarathiNumber = (text) => {
   if (!text) return '';
   return text.toString().split('').map(char => numberMap[char] || char).join('');
 };
 
-// Convert English text to Marathi with improved name handling
-export const toMarathiText = (text) => {
-  if (!text) return '';
+// Convert English name to Marathi using dictionary or transliteration
+export const toMarathiName = (name) => {
+  if (!name) return '';
   
-  // First convert any numbers
-  let result = toMarathiNumber(text);
+  // First try to find the exact name in our dictionary
+  const lower = name.toLowerCase();
+  if (nameMap[lower]) return nameMap[lower];
   
-  // Convert to lowercase for consistent matching
-  const lowerText = result.toLowerCase();
+  // If not found, transliterate the name
+  let result = '';
+  let i = 0;
   
-  // Handle vowels first
-  for (const [eng, mar] of Object.entries(vowelMap)) {
-    if (lowerText.includes(eng)) {
-      result = result.replace(new RegExp(eng, 'gi'), mar);
-    }
-  }
-  
-  // Handle matras
-  for (const [eng, mar] of Object.entries(matraMap)) {
-    if (lowerText.includes(eng)) {
-      result = result.replace(new RegExp(eng, 'gi'), mar);
-    }
-  }
-  
-  // Handle consonants and other characters
-  for (const [eng, mar] of Object.entries(charMap)) {
-    if (lowerText.includes(eng)) {
-      // Handle special cases for names
-      if (eng === 'patil' || eng === 'desai' || eng === 'joshi' || eng === 'kulkarni') {
-        result = result.replace(new RegExp(eng, 'gi'), mar);
-      } else {
-        // Regular character replacement
-        result = result.replace(new RegExp(eng, 'gi'), mar);
+  while (i < lower.length) {
+    let matched = false;
+    
+    // Try to match common name patterns
+    for (const [eng, mar] of Object.entries(nameMap)) {
+      if (lower.substring(i).startsWith(eng)) {
+        result += mar;
+        i += eng.length;
+        matched = true;
+        break;
       }
     }
+    
+    if (matched) continue;
+    
+    // Try to match special patterns
+    for (const [eng, mar] of Object.entries(specialPatterns)) {
+      if (lower.substring(i).startsWith(eng)) {
+        result += mar;
+        i += eng.length;
+        matched = true;
+        break;
+      }
+    }
+    
+    if (matched) continue;
+    
+    // Try to match character patterns
+    for (const [eng, mar] of Object.entries(charMap)) {
+      if (lower.substring(i).startsWith(eng)) {
+        result += mar;
+        i += eng.length;
+        matched = true;
+        break;
+      }
+    }
+    
+    if (matched) continue;
+    
+    // Try to match matra patterns
+    for (const [eng, mar] of Object.entries(matraMap)) {
+      if (lower.substring(i).startsWith(eng)) {
+        result += mar;
+        i += eng.length;
+        matched = true;
+        break;
+      }
+    }
+    
+    if (matched) continue;
+    
+    // Handle single vowels
+    if (vowelMap[lower[i]]) {
+      result += vowelMap[lower[i]];
+      i++;
+      continue;
+    }
+    
+    // If no pattern matched, keep the original character
+    result += lower[i];
+    i++;
   }
   
-  // Handle name prefixes
-  for (const [prefix, marPrefix] of Object.entries(namePrefixes)) {
-    if (lowerText.startsWith(prefix + ' ')) {
-      result = result.replace(new RegExp(`^${prefix}\\s`, 'i'), marPrefix + ' ');
-    }
+  // Special handling for 'a' at the end
+  if (result.endsWith('a')) {
+    result = result.slice(0, -1) + 'ा';
   }
+  
+  // Handle numbers
+  result = result.replace(/[0-9]/g, match => numberMap[match] || match);
   
   return result;
 };

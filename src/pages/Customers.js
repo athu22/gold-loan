@@ -17,18 +17,47 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  IconButton,
+  Tooltip,
+  Card,
+  CardContent,
+  useTheme,
+  alpha,
+  InputAdornment,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { Add as AddIcon } from '@mui/icons-material';
-import { addCustomer, getCustomers, updateCustomer, deleteCustomer, getShopSettings, getAllShops } from '../firebase/services';
-import { translations, toMarathiText, formatMarathiDate } from '../utils/translations';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Search as SearchIcon,
+  Print as PrintIcon,
+  FilterList as FilterListIcon,
+  Refresh as RefreshIcon,
+  Person as PersonIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationOnIcon,
+  Badge as BadgeIcon,
+  Save as SaveIcon,
+} from '@mui/icons-material';
+import { addCustomer, getCustomers, updateCustomer, deleteCustomer, getShopSettings, getAllShops, saveTableData, getTableData } from '../firebase/services';
+import { translations, toMarathiName, formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
+import MarathiTransliterator from '../components/MarathiTransliterator';
 
 function Customers() {
+  const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState([]);
   const [selectedShop, setSelectedShop] = useState('');
   const [shops, setShops] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -41,31 +70,85 @@ function Customers() {
     severity: 'success',
   });
 
+  // Table headings as per the image
+  const headings = [
+    'अनु. क्र.',
+    'खाते क्र.',
+    'पावती क्र.',
+    'दिनांक',
+    'नावं',
+    'वस्तू',
+    'रुपये',
+    'सोड दि',
+    'दिवस',
+    'सो पा क्र ',
+    'व्याज',
+    'पत्ता',
+    'सही',
+  ];
+
+  // Initial state for a row
+  const emptyRow = {
+    accountNo: '',
+    pavtiNo: '',
+    date: '',
+    name: '',
+    item: '',
+    goldRate: '',
+    sodDate: '',
+    divas: '',
+    moparu: '',
+    vayaj: '',
+    address: '',
+    signature: '',
+  };
+
+  const [rows, setRows] = useState([{ ...emptyRow }]);
+
   const columns = [
-    { field: 'id', headerName: 'ID', width: 70 },
     { 
       field: 'name', 
       headerName: translations.customers.name, 
       width: 200,
-      valueGetter: (params) => toMarathiText(params.row.name)
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <PersonIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+          <Typography>{toMarathiName(params.row.name)}</Typography>
+        </Box>
+      )
     },
     { 
       field: 'phone', 
       headerName: translations.customers.phone, 
       width: 150,
-      valueGetter: (params) => toMarathiText(params.row.phone)
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <PhoneIcon sx={{ mr: 1, color: theme.palette.info.main }} />
+          <Typography>{toMarathiName(params.row.phone)}</Typography>
+        </Box>
+      )
     },
     { 
       field: 'address', 
       headerName: translations.customers.address, 
       width: 300,
-      valueGetter: (params) => toMarathiText(params.row.address)
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <LocationOnIcon sx={{ mr: 1, color: theme.palette.warning.main }} />
+          <Typography>{toMarathiName(params.row.address)}</Typography>
+        </Box>
+      )
     },
     { 
       field: 'aadharNumber', 
       headerName: translations.customers.aadharNumber, 
       width: 150,
-      valueGetter: (params) => toMarathiText(params.row.aadharNumber)
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <BadgeIcon sx={{ mr: 1, color: theme.palette.success.main }} />
+          <Typography>{toMarathiName(params.row.aadharNumber)}</Typography>
+        </Box>
+      )
     },
     {
       field: 'actions',
@@ -73,20 +156,34 @@ function Customers() {
       width: 200,
       renderCell: (params) => (
         <Box>
-          <Button
-            size="small"
-            onClick={() => handleEdit(params.row)}
-            sx={{ mr: 1 }}
-          >
-            {translations.common.edit}
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            onClick={() => handleDelete(params.row.id)}
-          >
-            {translations.common.delete}
-          </Button>
+          <Tooltip title={translations.common.edit}>
+            <IconButton
+              size="small"
+              onClick={() => handleEdit(params.row)}
+              sx={{ 
+                color: theme.palette.primary.main,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                }
+              }}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={translations.common.delete}>
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(params.row.id)}
+              sx={{ 
+                color: theme.palette.error.main,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.error.main, 0.1),
+                }
+              }}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
         </Box>
       ),
     },
@@ -96,9 +193,17 @@ function Customers() {
     fetchShops();
   }, []);
 
+  useEffect(() => {
+    if (selectedShop) {
+      fetchTableData(selectedShop);
+    } else {
+      setRows([{ ...emptyRow }]);
+    }
+  }, [selectedShop]);
+
   const fetchShops = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await getAllShops();
       if (response.success) {
         const shopsArray = Object.entries(response.data || {}).map(([id, data]) => ({
@@ -106,49 +211,26 @@ function Customers() {
           name: data.shopName,
         }));
         setShops(shopsArray);
-        
-        // If there's a saved shop, select it
-        const savedShop = localStorage.getItem('currentShop');
-        if (savedShop && shopsArray.some(shop => shop.name === savedShop)) {
-          setSelectedShop(savedShop);
-          fetchCustomers(savedShop);
-        } else {
-          setLoading(false);
-        }
-      } else {
-        throw new Error(response.error);
       }
     } catch (error) {
-      console.error('Error fetching shops:', error);
-      setSnackbar({
-        open: true,
-        message: translations.common.error,
-        severity: 'error',
-      });
+      setSnackbar({ open: true, message: 'दुकाने मिळवताना त्रुटी आली', severity: 'error' });
+    } finally {
       setLoading(false);
     }
   };
 
-  const fetchCustomers = async (shopName) => {
+  const fetchTableData = async (shopName) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await getCustomers(shopName);
-      if (response.success) {
-        const customersArray = Object.entries(response.data || {}).map(([id, data]) => ({
-          id,
-          ...data,
-        }));
-        setCustomers(customersArray);
+      const response = await getTableData(shopName);
+      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+        setRows(response.data);
       } else {
-        throw new Error(response.error);
+        setRows([{ ...emptyRow }]);
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
-      setSnackbar({
-        open: true,
-        message: translations.common.error,
-        severity: 'error',
-      });
+      setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
+      setRows([{ ...emptyRow }]);
     } finally {
       setLoading(false);
     }
@@ -159,9 +241,9 @@ function Customers() {
     setSelectedShop(shopName);
     localStorage.setItem('currentShop', shopName);
     if (shopName) {
-      await fetchCustomers(shopName);
+      await fetchTableData(shopName);
     } else {
-      setCustomers([]);
+      setRows([{ ...emptyRow }]);
     }
   };
 
@@ -183,7 +265,7 @@ function Customers() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'name' ? toMarathiName(value) : value
     }));
   };
 
@@ -207,7 +289,7 @@ function Customers() {
           severity: 'success',
         });
         handleClose();
-        fetchCustomers(selectedShop); // Refresh the customer list
+        fetchTableData(selectedShop); // Refresh the customer list
       } else {
         throw new Error(response.error);
       }
@@ -239,7 +321,7 @@ function Customers() {
             message: translations.customers.deleteSuccess,
             severity: 'success',
           });
-          fetchCustomers(selectedShop); // Refresh the customer list
+          fetchTableData(selectedShop); // Refresh the customer list
         } else {
           throw new Error(response.error);
         }
@@ -260,10 +342,121 @@ function Customers() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  const handlePrint = () => {
+    const printContent = document.createElement('div');
+    printContent.innerHTML = `
+      <div style="padding: 20px;">
+        <h2 style="text-align: center; margin-bottom: 20px;">${toMarathiName(selectedShop)} - ग्राहक यादी</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background-color: #f5f5f5;">
+              <th style="padding: 8px; border: 1px solid #ddd;">नाव</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">फोन</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">पत्ता</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">आधार क्रमांक</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${customers.map(customer => `
+              <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.name)}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.phone)}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.address)}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.aadharNumber)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top: 20px; text-align: right;">
+          <p>प्रिंट तारीख: ${formatMarathiDate(new Date().toISOString())}</p>
+        </div>
+      </div>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${toMarathiName(selectedShop)} - ग्राहक यादी</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 20px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { padding: 8px; border: 1px solid #ddd; }
+              th { background-color: #f5f5f5; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
+  // Handle cell change
+  const handleCellChange = (index, field, value) => {
+    const updatedRows = [...rows];
+    updatedRows[index][field] = value;
+    setRows(updatedRows);
+  };
+
+  // Add new row
+  const handleAddRow = () => {
+    setRows([...rows, { ...emptyRow }]);
+  };
+
+  // Delete row
+  const handleDeleteRow = (index) => {
+    const updatedRows = rows.filter((_, i) => i !== index);
+    setRows(updatedRows.length ? updatedRows : [{ ...emptyRow }]);
+  };
+
+  // Save all rows to backend
+  const handleSave = async () => {
+    if (!selectedShop) {
+      setSnackbar({ open: true, message: 'कृपया दुकान निवडा', severity: 'error' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await saveTableData(selectedShop, rows);
+      if (response.success) {
+        setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
+      } else {
+        throw new Error(response.error || 'सेव्ह करताना त्रुटी आली');
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">{translations.customers.title}</Typography>
+    <Box sx={{ p: 3 }}>
+      {/* Header Section */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 4,
+        backgroundColor: alpha(theme.palette.primary.main, 0.1),
+        p: 2,
+        borderRadius: 2,
+      }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+            {translations.customers.title}
+          </Typography>
+          <Typography variant="subtitle1" color="textSecondary">
+            {selectedShop ? `${toMarathiName(selectedShop)} - ग्राहक व्यवस्थापन` : 'कृपया दुकान निवडा'}
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>{translations.common.selectShop}</InputLabel>
@@ -271,11 +464,12 @@ function Customers() {
               value={selectedShop}
               onChange={handleShopChange}
               label={translations.common.selectShop}
+              sx={{ backgroundColor: 'white' }}
             >
               <MenuItem value="">{translations.common.selectShop}</MenuItem>
               {shops.map((shop) => (
                 <MenuItem key={shop.id} value={shop.name}>
-                  {toMarathiText(shop.name)}
+                  {toMarathiName(shop.name)}
                 </MenuItem>
               ))}
             </Select>
@@ -285,52 +479,223 @@ function Customers() {
             startIcon={<AddIcon />}
             onClick={handleClickOpen}
             disabled={loading || !selectedShop}
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+              '&:hover': {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
           >
             {translations.customers.addCustomer}
           </Button>
         </Box>
       </Box>
 
-      <Paper sx={{ height: 600, width: '100%' }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <CircularProgress />
-          </Box>
-        ) : !selectedShop ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Typography variant="h6" color="textSecondary">
-              {translations.common.pleaseSelectShop}
-            </Typography>
-          </Box>
-        ) : (
-          <DataGrid
-            rows={customers}
-            columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10]}
-            checkboxSelection
-            disableSelectionOnClick
-          />
-        )}
-      </Paper>
+      {/* Search and Actions Bar */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <TextField
+          placeholder="ग्राहक शोधा..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ flexGrow: 1 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Tooltip title="प्रिंट करा">
+          <IconButton 
+            onClick={handlePrint}
+            disabled={!selectedShop || customers.length === 0}
+            sx={{ 
+              color: theme.palette.primary.main,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              }
+            }}
+          >
+            <PrintIcon />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="रिफ्रेश करा">
+          <IconButton 
+            onClick={() => fetchTableData(selectedShop)}
+            disabled={!selectedShop}
+            sx={{ 
+              color: theme.palette.info.main,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.info.main, 0.1),
+              }
+            }}
+          >
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>
+      {/* Customers Grid */}
+      <Card elevation={3}>
+        <CardContent sx={{ p: 0 }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+              <CircularProgress />
+            </Box>
+          ) : !selectedShop ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+              <Typography variant="h6" color="textSecondary">
+                {translations.common.pleaseSelectShop}
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto', width: '100%' }}>
+              <Table sx={{ minWidth: 1800 }}>
+                <TableHead>
+                  <TableRow>
+                    {headings.map((heading, idx) => (
+                      <TableCell key={idx} align="center" sx={{ fontWeight: 'bold' }}>{heading}</TableCell>
+                    ))}
+                    <TableCell align="center">क्रिया</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows.map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell align="center">{idx + 1}</TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.accountNo}
+                          onChange={e => handleCellChange(idx, 'accountNo', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.pavtiNo}
+                          onChange={e => handleCellChange(idx, 'pavtiNo', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          type="date"
+                          value={row.date}
+                          onChange={e => handleCellChange(idx, 'date', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
+                        <TextField
+                          value={row.name}
+                          onChange={e => handleCellChange(idx, 'name', e.target.value)}
+                          variant="standard"
+                          fullWidth
+                        />
+                      </TableCell>
+                      <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
+                        <TextField
+                          value={row.item}
+                          onChange={e => handleCellChange(idx, 'item', e.target.value)}
+                          variant="standard"
+                          fullWidth
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.goldRate}
+                          onChange={e => handleCellChange(idx, 'goldRate', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          type="date"
+                          value={row.sodDate}
+                          onChange={e => handleCellChange(idx, 'sodDate', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.divas}
+                          onChange={e => handleCellChange(idx, 'divas', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.moparu}
+                          onChange={e => handleCellChange(idx, 'moparu', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.vayaj}
+                          onChange={e => handleCellChange(idx, 'vayaj', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
+                        <TextField
+                          value={row.address}
+                          onChange={e => handleCellChange(idx, 'address', e.target.value)}
+                          variant="standard"
+                          fullWidth
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <TextField
+                          value={row.signature}
+                          onChange={e => handleCellChange(idx, 'signature', e.target.value)}
+                          variant="standard"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton color="error" onClick={() => handleDeleteRow(idx)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Customer Dialog */}
+      <Dialog 
+        open={open} 
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          backgroundColor: theme.palette.primary.main,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <PersonIcon />
           {formData.id ? translations.common.edit : translations.customers.addCustomer}
         </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
+        <DialogContent sx={{ mt: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <MarathiTransliterator
                 label={translations.customers.name}
-                name="name"
                 value={formData.name}
-                onChange={handleInputChange}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                fullWidth
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label={translations.customers.phone}
@@ -338,6 +703,13 @@ function Customers() {
                 value={formData.phone}
                 onChange={handleInputChange}
                 required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PhoneIcon />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -350,6 +722,13 @@ function Customers() {
                 multiline
                 rows={3}
                 required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LocationOnIcon />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -360,22 +739,54 @@ function Customers() {
                 value={formData.aadharNumber}
                 onChange={handleInputChange}
                 required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <BadgeIcon />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>{translations.common.cancel}</Button>
-          <Button onClick={handleSubmit} variant="contained">
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={handleClose}
+            sx={{ 
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.text.secondary, 0.1),
+              }
+            }}
+          >
+            {translations.common.cancel}
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained"
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+              '&:hover': {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
             {translations.common.save}
           </Button>
         </DialogActions>
       </Dialog>
 
+      <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={handleAddRow} disabled={!selectedShop}>नवीन पंक्ति जोडा</Button>
+        <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} disabled={!selectedShop || loading}>सेव्ह करा</Button>
+      </Box>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert
           onClose={handleCloseSnackbar}

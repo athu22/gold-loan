@@ -345,4 +345,39 @@ export const getAllShops = async () => {
       error: 'दुकाने मिळवताना त्रुटी आली'
     };
   }
+};
+
+// Save customer table data for a shop
+export const saveTableData = async (shopName, rows) => {
+  try {
+    if (!shopName) {
+      return { success: false, error: 'दुकान नाव आवश्यक आहे' };
+    }
+    const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
+    const tableRef = ref(database, `shops/${shopKey}/customerTable`);
+    await set(tableRef, rows);
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving customer table data:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Get customer table data for a shop
+export const getTableData = async (shopName) => {
+  try {
+    if (!shopName) {
+      return { success: false, error: 'दुकान नाव आवश्यक आहे' };
+    }
+    const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
+    const tableRef = ref(database, `shops/${shopKey}/customerTable`);
+    const snapshot = await get(tableRef);
+    if (snapshot.exists()) {
+      return { success: true, data: snapshot.val() };
+    }
+    return { success: true, data: [] };
+  } catch (error) {
+    console.error('Error getting customer table data:', error);
+    return { success: false, error: error.message };
+  }
 }; 
