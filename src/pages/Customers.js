@@ -343,52 +343,57 @@ function Customers() {
   };
 
   const handlePrint = () => {
-    const printContent = document.createElement('div');
-    printContent.innerHTML = `
+    const headings = [
+      'अ क्र', 'खाते क्र', 'पावती क्र', 'दिनांक', 'नावं', 'वस्तू', 'रुपये', 'सोड दि', 'दिवस', 'सो पा क्र', 'व्याज', 'पत्ता', 'ठेवी', 'काढ', 'सही'
+    ];
+
+    const printContent = `
       <div style="padding: 20px;">
-        <h2 style="text-align: center; margin-bottom: 20px;">${toMarathiName(selectedShop)} - ग्राहक यादी</h2>
-        <table style="width: 100%; border-collapse: collapse;">
+        <h2 style="text-align: center; margin-bottom: 20px;">${toMarathiName(selectedShop)}</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
-            <tr style="background-color: #f5f5f5;">
-              <th style="padding: 8px; border: 1px solid #ddd;">नाव</th>
-              <th style="padding: 8px; border: 1px solid #ddd;">फोन</th>
-              <th style="padding: 8px; border: 1px solid #ddd;">पत्ता</th>
-              <th style="padding: 8px; border: 1px solid #ddd;">आधार क्रमांक</th>
+            <tr>
+              ${headings.map(h => `<th style="border: 1px solid #000; padding: 4px; text-align: center;">${h}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
-            ${customers.map(customer => `
+            ${rows.map((row, idx) => `
               <tr>
-                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.name)}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.phone)}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.address)}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">${toMarathiName(customer.aadharNumber)}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${idx + 1}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.accountNo || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.pavtiNo || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.date || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.name || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.item || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${row.goldRate || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.sodDate || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.divas || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.moparu || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${row.vayaj || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.address || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;"></td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;"></td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;"></td>
               </tr>
             `).join('')}
           </tbody>
         </table>
-        <div style="margin-top: 20px; text-align: right;">
-          <p>प्रिंट तारीख: ${formatMarathiDate(new Date().toISOString())}</p>
-        </div>
       </div>
+      <style>
+        @media print {
+          body { margin: 0; }
+          table { page-break-inside: avoid; }
+        }
+      </style>
     `;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', 'printWindow');
     printWindow.document.write(`
       <html>
         <head>
-          <title>${toMarathiName(selectedShop)} - ग्राहक यादी</title>
-          <style>
-            @media print {
-              body { margin: 0; padding: 20px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { padding: 8px; border: 1px solid #ddd; }
-              th { background-color: #f5f5f5; }
-            }
-          </style>
         </head>
         <body>
-          ${printContent.innerHTML}
+          ${printContent}
         </body>
       </html>
     `);
@@ -509,7 +514,7 @@ function Customers() {
         <Tooltip title="प्रिंट करा">
           <IconButton 
             onClick={handlePrint}
-            disabled={!selectedShop || customers.length === 0}
+            disabled={!selectedShop || rows.length === 0}
             sx={{ 
               color: theme.palette.primary.main,
               '&:hover': {
