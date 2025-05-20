@@ -18,6 +18,7 @@ import {
   Alert,
   Button,
   Stack,
+  TextField,
 } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -31,6 +32,12 @@ function Loans() {
   const [tableData, setTableData] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    // Default to current month in YYYY-MM format
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  
   // Table headings as per your image
   const headings = [
     'तारीख', 'जमा तपशील', 'खाते पान', 'रक्कम', '', '', 'तारीख', 'नावेचा तपशील', 'खाते पान', 'रक्कम', '', '',
@@ -71,8 +78,15 @@ function Loans() {
     try {
       const response = await getTableData(shopName);
       if (response.success && response.data) {
-        // Convert to array and sort by date if needed
-        const dataArray = Object.entries(response.data).map(([id, data]) => ({ id, ...data }));
+        // Convert to array and sort by date
+        const dataArray = Object.entries(response.data)
+          .map(([id, data]) => ({ id, ...data }))
+          .sort((a, b) => {
+            // Convert dates to timestamps for comparison
+            const dateA = a.date ? new Date(a.date).getTime() : 0;
+            const dateB = b.date ? new Date(b.date).getTime() : 0;
+            return dateA - dateB; // Sort in ascending order
+          });
         setTableData(dataArray);
       } else {
         setTableData([]);
@@ -85,89 +99,149 @@ function Loans() {
     }
   };
 
+    const filteredTableData = React.useMemo(() => {
+    if (!selectedMonth) return tableData;
+    const [year, month] = selectedMonth.split('-');
+    return tableData.filter(row => {
+      // Check both loan date and sodDate for the month
+      const datesToCheck = [row.date, row.sodDate].filter(Boolean);
+      return datesToCheck.some(dateStr => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(month);
+      });
+    });
+  }, [tableData, selectedMonth]);
+
   const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
 
-  const handlePrint = () => {
-    const printContent = document.getElementById('loans-table');
-    const originalContents = document.body.innerHTML;
-    
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>कॅश बुक - ${selectedShop}</title>
-          <style>
-            @page {
-              size: landscape;
-              margin: 20mm;
-            }
+const handlePrint = () => {
+  const printContent = document.getElementById('loans-table');
+  const originalContents = document.body.innerHTML;
+
+  // Marathi sentence to show
+  const marathiSentence = 'महाराष्ट्र सावकारी (नियमाना) अधिनियम २०१४ नमुना ६ नियम १८ पहा.';
+
+  // Create a new window for printing
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>कॅश बुक - ${selectedShop}</title>
+        <style>
+          @page {
+            size: landscape;
+            margin: 15mm;
+          }
+          body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            padding: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 12px;
+            text-align: center;
+            font-size: 15px;
+          }
+          th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+          }
+          .shop-name {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 0px;
+            text-transform: uppercase;
+          }
+          .marathi-sentence {
+            text-align: left;
+            font-size: 16px;
+            font-weight: normal;
+            margin-bottom: 10px;
+            margin-top: 0px;
+          }
+          .column-labels {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+          }
+          .jama-section, .kharch-section {
+            width: 50%;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+          }
+          .jama-section {
+            padding-right: 25%;
+          }
+          .kharch-section {
+            padding-left: 25%;
+          }
+          @media print {
             body {
-              font-family: Arial, sans-serif;
-              font-size: 14px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            th, td {
-              border: 1px solid black;
-              padding: 8px;
-              text-align: center;
-            }
-            th {
-              background-color: #f0f0f0;
-            }
-            .shop-name {
-              text-align: center;
-              font-size: 18px;
-              font-weight: bold;
-              margin-bottom: 20px;
-            }
-            .column-labels {
-              display: flex;
-              margin-bottom: 10px;
-            }
-            .jama-section, .kharch-section {
-              width: 50%;
-              text-align: center;
-              font-size: 16px;
-              font-weight: bold;
-            }
-            .jama-section {
-              padding-right: 25%;
-            }
-            .kharch-section {
-              padding-left: 25%;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="shop-name">${selectedShop}</div>
-          <div class="column-labels">
-            <div class="jama-section">जमा</div>
-            <div class="kharch-section">खर्च</div>
-          </div>
-          ${printContent.outerHTML}
-        </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    
-    // Wait for content to load then print
-    printWindow.onload = function() {
-      printWindow.print();
-      printWindow.close();
-    };
+          }
+        </style>
+      </head>
+      <body>
+        <div class="shop-name">${selectedShop}</div>
+        <div class="marathi-sentence">${marathiSentence}</div>
+        <div class="column-labels">
+          <div class="jama-section">जमा</div>
+          <div class="kharch-section">खर्च</div>
+        </div>
+        ${printContent.outerHTML}
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  printWindow.focus();
+
+  printWindow.onload = function() {
+    printWindow.print();
+    printWindow.close();
   };
+};
 
   const handleRefresh = () => {
     if (selectedShop) {
       fetchTableData(selectedShop);
     }
   };
+
+  const groupedRows = React.useMemo(() => {
+    const dateMap = {};
+    filteredTableData.forEach(row => {
+      if (row.date) {
+        const key = row.date;
+        if (!dateMap[key]) dateMap[key] = { jama: null, sod: null };
+        dateMap[key].jama = row;
+      }
+      if (row.sodDate) {
+        const key = row.sodDate;
+        if (!dateMap[key]) dateMap[key] = { jama: null, sod: null };
+        dateMap[key].sod = row;
+      }
+    });
+    return Object.keys(dateMap)
+      .sort((a, b) => new Date(a) - new Date(b))
+      .map(date => ({
+        date,
+        jama: dateMap[date].jama,
+        sod: dateMap[date].sod,
+      }));
+  }, [filteredTableData]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -192,6 +266,18 @@ function Loans() {
           </Button>
         </Stack>
       </Stack>
+            <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <TextField
+          label="महिना निवडा"
+          type="month"
+          value={selectedMonth}
+          onChange={e => setSelectedMonth(e.target.value)}
+          size="small"
+          sx={{ width: 200 }}
+          InputLabelProps={{ shrink: true }}
+        />
+      </Box>
+
       <FormControl sx={{ minWidth: 250, mb: 3 }}>
         <InputLabel>दुकान निवडा</InputLabel>
         <Select
@@ -219,30 +305,32 @@ function Loans() {
                 ))}
               </TableRow>
             </TableHead>
-            <TableBody>
-              {tableData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={headings.length} align="center">डेटा उपलब्ध नाही</TableCell>
-                </TableRow>
-              ) : (
-                tableData.map((row, idx) => (
-                  <TableRow key={row.id}>
-                    <TableCell align="center">{row.date ? formatMarathiDate(row.date) : ''}</TableCell>
-                    <TableCell align="center">{row.customerName || ''}</TableCell>
-                    <TableCell align="center">{row.accountNumber || ''}</TableCell>
-                    <TableCell align="center">{row.goldRate ? formatMarathiCurrency(row.goldRate) : ''}</TableCell>
-                    <TableCell align="center"></TableCell>
-                    <TableCell align="center"></TableCell>
-                    <TableCell align="center">{row.expenseDate ? formatMarathiDate(row.expenseDate) : ''}</TableCell>
-                    <TableCell align="center">{row.expenseDetails || ''}</TableCell>
-                    <TableCell align="center">{row.expenseAccountNumber || ''}</TableCell>
-                    <TableCell align="center">{row.expenseAmount ? formatMarathiCurrency(row.expenseAmount) : ''}</TableCell>
-                    <TableCell align="center"></TableCell>
-                    <TableCell align="center"></TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
+<TableBody>
+  {groupedRows.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={headings.length} align="center">डेटा उपलब्ध नाही</TableCell>
+    </TableRow>
+  ) : (
+    groupedRows.map((row, idx) => (
+      <TableRow key={idx}>
+        {/* जमा तपशील */}
+        <TableCell align="center">{row.jama ? formatMarathiDate(row.date) : ''}</TableCell>
+        <TableCell align="center">{row.jama ? `श्री ${row.jama.name}` : ''}</TableCell>
+        <TableCell align="center">{row.jama ? row.jama.accountNo : ''}</TableCell>
+        <TableCell align="center">{row.jama ? formatMarathiCurrency(row.jama.goldRate) : ''}</TableCell>
+        <TableCell align="center"></TableCell>
+        <TableCell align="center"></TableCell>
+        {/* नावेचा तपशील */}
+        <TableCell align="center">{row.sod ? formatMarathiDate(row.date) : ''}</TableCell>
+        <TableCell align="center">{row.sod ? `श्री ${row.sod.name}` : ''}</TableCell>
+        <TableCell align="center">{row.sod ? row.sod.accountNo : ''}</TableCell>
+        <TableCell align="center">{row.sod ? formatMarathiCurrency(row.sod.goldRate) : ''}</TableCell>
+        <TableCell align="center"></TableCell>
+        <TableCell align="center"></TableCell>
+      </TableRow>
+    ))
+  )}
+</TableBody>
           </Table>
         </TableContainer>
       )}

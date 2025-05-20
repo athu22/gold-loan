@@ -31,7 +31,6 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -46,15 +45,14 @@ import {
   Badge as BadgeIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
-import { addCustomer, getCustomers, updateCustomer, deleteCustomer, getShopSettings, getAllShops, saveTableData, getTableData } from '../firebase/services';
-import { translations, toMarathiName, formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
+import { addCustomer,  updateCustomer, deleteCustomer,  getAllShops, saveTableData, getTableData } from '../firebase/services';
+import { translations, toMarathiName } from '../utils/translations';
 import MarathiTransliterator from '../components/MarathiTransliterator';
 
 function Customers() {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [customers, setCustomers] = useState([]);
   const [selectedShop, setSelectedShop] = useState('');
   const [shops, setShops] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,6 +67,11 @@ function Customers() {
     message: '',
     severity: 'success',
   });
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+});
 
   // Table headings as per the image
   const headings = [
@@ -407,6 +410,25 @@ function Customers() {
   const handleCellChange = (index, field, value) => {
     const updatedRows = [...rows];
     updatedRows[index][field] = value;
+
+    // Calculate days if either date changes
+    if (field === 'date' || field === 'sodDate') {
+      const loanDate = updatedRows[index].date;
+      const returnDate = updatedRows[index].sodDate;
+
+      if (loanDate && returnDate) {
+        const start = new Date(loanDate);
+        const end = new Date(returnDate);
+        
+        // Calculate difference in days
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Update the days field
+        updatedRows[index].divas = diffDays.toString();
+      }
+    }
+
     setRows(updatedRows);
   };
 
@@ -454,6 +476,18 @@ function Customers() {
         p: 2,
         borderRadius: 2,
       }}>
+
+        <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+  <TextField
+    label="महिना निवडा"
+    type="month"
+    value={selectedMonth}
+    onChange={e => setSelectedMonth(e.target.value)}
+    size="small"
+    sx={{ width: 200 }}
+    InputLabelProps={{ shrink: true }}
+  />
+</Box>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
             {translations.customers.title}
@@ -511,34 +545,33 @@ function Customers() {
             ),
           }}
         />
-        <Tooltip title="प्रिंट करा">
-          <IconButton 
-            onClick={handlePrint}
-            disabled={!selectedShop || rows.length === 0}
-            sx={{ 
-              color: theme.palette.primary.main,
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-              }
-            }}
-          >
-            <PrintIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="रिफ्रेश करा">
-          <IconButton 
-            onClick={() => fetchTableData(selectedShop)}
-            disabled={!selectedShop}
-            sx={{ 
-              color: theme.palette.info.main,
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.info.main, 0.1),
-              }
-            }}
-          >
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
+<Tooltip title="प्रिंट करा">
+  <span>
+    <IconButton 
+      onClick={handlePrint}
+      disabled={!selectedShop || rows.length === 0}
+      sx={{ color: theme.palette.primary.main, '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) } }}
+    >
+      <PrintIcon />
+    </IconButton>
+  </span>
+</Tooltip>
+<Tooltip title="रिफ्रेश करा">
+  <span>
+    <IconButton 
+      onClick={() => fetchTableData(selectedShop)}
+      disabled={!selectedShop}
+      sx={{ 
+        color: theme.palette.info.main,
+        '&:hover': {
+          backgroundColor: alpha(theme.palette.info.main, 0.1),
+        }
+      }}
+    >
+      <RefreshIcon />
+    </IconButton>
+  </span>
+</Tooltip>
       </Box>
 
       {/* Customers Grid */}
@@ -597,6 +630,9 @@ function Customers() {
                           onChange={e => handleCellChange(idx, 'name', e.target.value)}
                           variant="standard"
                           fullWidth
+                          InputProps={{
+                            startAdornment: <InputAdornment position="start">श्री</InputAdornment>,
+                          }}
                         />
                       </TableCell>
                       <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
