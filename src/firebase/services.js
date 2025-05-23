@@ -347,14 +347,15 @@ export const getAllShops = async () => {
   }
 };
 
-// Save customer table data for a shop
-export const saveTableData = async (shopName, rows) => {
+
+// Save customer table data for a shop and month
+export const saveTableData = async (shopName, month, rows) => {
   try {
-    if (!shopName) {
-      return { success: false, error: 'दुकान नाव आवश्यक आहे' };
+    if (!shopName || !month) {
+      return { success: false, error: 'दुकान नाव आणि महिना आवश्यक आहे' };
     }
     const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
-    const tableRef = ref(database, `shops/${shopKey}/customerTable`);
+    const tableRef = ref(database, `shops/${shopKey}/customerTable/${month}`);
     await set(tableRef, rows);
     return { success: true };
   } catch (error) {
@@ -363,21 +364,21 @@ export const saveTableData = async (shopName, rows) => {
   }
 };
 
-// Get customer table data for a shop
-export const getTableData = async (shopName) => {
+export const getTableData = async (shopName, month) => {
   try {
-    if (!shopName) {
-      return { success: false, error: 'दुकान नाव आवश्यक आहे' };
+    if (!shopName || !month) {
+      return { success: false, error: 'दुकान नाव आणि महिना आवश्यक आहे' };
     }
     const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
-    const tableRef = ref(database, `shops/${shopKey}/customerTable`);
+    const tableRef = ref(database, `shops/${shopKey}/customerTable/${month}`);
     const snapshot = await get(tableRef);
     if (snapshot.exists()) {
       return { success: true, data: snapshot.val() };
     }
     return { success: true, data: [] };
   } catch (error) {
-    console.error('Error getting customer table data:', error);
     return { success: false, error: error.message };
   }
-}; 
+};
+
+

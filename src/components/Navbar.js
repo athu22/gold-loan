@@ -17,6 +17,7 @@ import {
   Assessment as AssessmentIcon,
   Settings as SettingsIcon,
   Menu as MenuIcon,
+ TableChart as TableChartIcon,
 } from '@mui/icons-material';
 
 const Navbar = ({ translations }) => {
@@ -35,7 +36,9 @@ const Navbar = ({ translations }) => {
     { text: translations.customers, icon: <PeopleIcon />, path: '/customers' },
     { text: translations.loans, icon: <AccountBalanceIcon />, path: '/loans' },
     { text: translations.reports, icon: <AssessmentIcon />, path: '/reports' },
+    { text: 'भौदल खाते', icon: <TableChartIcon />, path: '/bhaudal-khate' },
     { text: translations.settings, icon: <SettingsIcon />, path: '/settings' },
+
   ];
 
   return (

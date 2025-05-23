@@ -196,13 +196,13 @@ function Customers() {
     fetchShops();
   }, []);
 
-  useEffect(() => {
-    if (selectedShop) {
-      fetchTableData(selectedShop);
-    } else {
-      setRows([{ ...emptyRow }]);
-    }
-  }, [selectedShop]);
+useEffect(() => {
+  if (selectedShop) {
+    fetchTableData(selectedShop, selectedMonth);
+  } else {
+    setRows([{ ...emptyRow }]);
+  }
+}, [selectedShop, selectedMonth]);
 
   const fetchShops = async () => {
     setLoading(true);
@@ -222,22 +222,22 @@ function Customers() {
     }
   };
 
-  const fetchTableData = async (shopName) => {
-    setLoading(true);
-    try {
-      const response = await getTableData(shopName);
-      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-        setRows(response.data);
-      } else {
-        setRows([{ ...emptyRow }]);
-      }
-    } catch (error) {
-      setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
+const fetchTableData = async (shopName, month = selectedMonth) => {
+  setLoading(true);
+  try {
+    const response = await getTableData(shopName, month); // Pass month
+    if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+      setRows(response.data);
+    } else {
       setRows([{ ...emptyRow }]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
+    setRows([{ ...emptyRow }]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleShopChange = async (event) => {
     const shopName = event.target.value;
@@ -444,25 +444,25 @@ function Customers() {
   };
 
   // Save all rows to backend
-  const handleSave = async () => {
-    if (!selectedShop) {
-      setSnackbar({ open: true, message: 'कृपया दुकान निवडा', severity: 'error' });
-      return;
+const handleSave = async () => {
+  if (!selectedShop) {
+    setSnackbar({ open: true, message: 'कृपया दुकान निवडा', severity: 'error' });
+    return;
+  }
+  setLoading(true);
+  try {
+    const response = await saveTableData(selectedShop, selectedMonth, rows); // Pass month
+    if (response.success) {
+      setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
+    } else {
+      throw new Error(response.error || 'सेव्ह करताना त्रुटी आली');
     }
-    setLoading(true);
-    try {
-      const response = await saveTableData(selectedShop, rows);
-      if (response.success) {
-        setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
-      } else {
-        throw new Error(response.error || 'सेव्ह करताना त्रुटी आली');
-      }
-    } catch (error) {
-      setSnackbar({ open: true, message: error.message, severity: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    setSnackbar({ open: true, message: error.message, severity: 'error' });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <Box sx={{ p: 3 }}>
@@ -478,15 +478,15 @@ function Customers() {
       }}>
 
         <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-  <TextField
-    label="महिना निवडा"
-    type="month"
-    value={selectedMonth}
-    onChange={e => setSelectedMonth(e.target.value)}
-    size="small"
-    sx={{ width: 200 }}
-    InputLabelProps={{ shrink: true }}
-  />
+<TextField
+  label="महिना निवडा"
+  type="month"
+  value={selectedMonth}
+  onChange={e => setSelectedMonth(e.target.value)}
+  size="small"
+  sx={{ width: 200 }}
+  InputLabelProps={{ shrink: true }}
+/>
 </Box>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Loans from './pages/Loans';
 import Reports from './pages/Reports';
+import BhaudalKhate from './pages/BhaudalKhate';
 import Settings from './pages/Settings';
 
 // Marathi translations
@@ -63,6 +64,7 @@ function App() {
               <Route path="/customers" element={<Customers />} />
               <Route path="/loans" element={<Loans />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/bhaudal-khate" element={<BhaudalKhate />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </Box>

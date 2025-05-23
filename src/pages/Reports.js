@@ -1,310 +1,403 @@
-import React, { useRef, useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Snackbar,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  CircularProgress,
-} from '@mui/material';
-import { getAllShops, getCustomers, getLoans, getRepayments, getShopSettings } from '../firebase/services';
-import { translations, toMarathiName, formatMarathiDate, formatMarathiCurrency, toMarathiNumber } from '../utils/translations';
+import React, { useEffect, useState , useRef} from 'react';
+import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
+import { getAllShops, getTableData } from '../firebase/services';
+import PrintIcon from '@mui/icons-material/Print';
 
 function Reports() {
-  const printRef = useRef();
   const [loading, setLoading] = useState(true);
-  const [selectedShop, setSelectedShop] = useState('');
+  const [reports, setReports] = useState([]);
   const [shops, setShops] = useState([]);
-  const [reportData, setReportData] = useState({
-    customerData: {
-      customerLoans: [],
-    },
-  });
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'error',
-  });
-  const [shopSettings, setShopSettings] = useState({
-    interestRate: 2.5,
-  });
+  const [selectedShop, setSelectedShop] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+});
 
-  useEffect(() => {
-    fetchShops();
-  }, []);
-
-  const fetchShops = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllShops();
-      if (response.success) {
-        const shopsArray = Object.entries(response.data || {}).map(([id, data]) => ({
-          id,
-          name: data.shopName,
-        }));
-        setShops(shopsArray);
-        
-        // If there's a saved shop, select it
-        const savedShop = localStorage.getItem('currentShop');
-        if (savedShop && shopsArray.some(shop => shop.name === savedShop)) {
-          setSelectedShop(savedShop);
-          fetchCustomerData(savedShop);
-        }
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error('Error fetching shops:', error);
-      setSnackbar({
-        open: true,
-        message: translations.common.error,
-        severity: 'error',
-      });
-    } finally {
+  const printRef = useRef();
+useEffect(() => {
+  async function fetchData() {
+    setLoading(true);
+    const shopsRes = await getAllShops();
+    if (!shopsRes.success) {
       setLoading(false);
+      return;
     }
-  };
+    const shopsArr = Object.values(shopsRes.data || {});
+    setShops(shopsArr);
 
-  const fetchCustomerData = async (shopName) => {
-    try {
-      setLoading(true);
-      const [customersResponse, loansResponse, settingsResponse] = await Promise.all([
-        getCustomers(shopName),
-        getLoans(shopName),
-        getShopSettings(shopName)
-      ]);
-
-      if (customersResponse.success && loansResponse.success && settingsResponse.success) {
-        const customersArray = Object.entries(customersResponse.data || {}).map(([id, data]) => ({
-          id,
-          ...data,
-        }));
-
-        const loansArray = Object.entries(loansResponse.data || {}).map(([id, data]) => {
-          const customer = customersArray.find(c => c.id === data.customerId);
-          return {
-            id,
-            ...data,
-            customerName: data.customerName || customer?.name || 'Unknown Customer',
-            phone: customer?.phone || '-'
-          };
-        });
-
-        // Fetch repayments for each loan
-        const loansWithRepayments = await Promise.all(
-          loansArray.map(async (loan) => {
-            const repaymentsResponse = await getRepayments(shopName, loan.id);
-            const repayments = repaymentsResponse.success ? 
-              Object.entries(repaymentsResponse.data || {}).map(([id, data]) => ({ id, ...data })) : [];
-            
-            return {
-              ...loan,
-              repayments,
-              totalPaid: calculateTotalPaid(repayments),
-              remainingBalance: calculateRemainingBalance(loan, repayments),
-              interest: calculateInterest(loan, repayments)
-            };
-          })
-        );
-
-        setShopSettings(settingsResponse.data || { interestRate: 2.5 });
-        setReportData({
-          customerData: {
-            customerLoans: loansWithRepayments
-          }
-        });
-      } else {
-        throw new Error('Failed to fetch data');
-      }
-    } catch (error) {
-      console.error('Error fetching customer data:', error);
-      setSnackbar({
-        open: true,
-        message: translations.common.error,
-        severity: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Function to calculate total paid amount
-  const calculateTotalPaid = (repayments) => {
-    return repayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
-  };
-
-  // Function to calculate remaining balance
-  const calculateRemainingBalance = (loan, repayments) => {
-    const totalPaid = calculateTotalPaid(repayments);
-    const principal = parseFloat(loan.loanAmount || 0);
-    const interest = calculateInterest(loan, repayments);
-    return principal + interest - totalPaid;
-  };
-
-  // Function to calculate interest
-  const calculateInterest = (loan, repayments) => {
-    const principal = parseFloat(loan.loanAmount || 0);
-    const interestRate = parseFloat(shopSettings.interestRate || 0) / 100;
-    const startDate = new Date(loan.startDate);
-    const endDate = new Date();
-    const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                      (endDate.getMonth() - startDate.getMonth());
-    
-    return principal * interestRate * (monthsDiff / 12);
-  };
-
-  const handleShopChange = async (event) => {
-    const shopName = event.target.value;
-    setSelectedShop(shopName);
-    localStorage.setItem('currentShop', shopName);
-    if (shopName) {
-      await fetchCustomerData(shopName);
-    } else {
-      setReportData({
-        customerData: {
-          customerLoans: []
-        }
+    // Fetch all shop reports for the selected month
+    const allReports = [];
+    for (const shop of shopsArr) {
+      const tableRes = await getTableData(shop.shopName, selectedMonth); // Pass month here
+      allReports.push({
+        shop,
+        customers: tableRes.success && Array.isArray(tableRes.data) ? tableRes.data : [],
       });
     }
+    setReports(allReports);
+    setLoading(false);
+  }
+  fetchData();
+}, [selectedMonth]);
+
+  const handleShopChange = (event) => {
+    setSelectedShop(event.target.value);
+    setSelectedCustomer(''); // Reset customer when shop changes
   };
 
-  const handlePrint = () => {
-    const printContents = printRef.current.innerHTML;
-    const originalContents = document.body.innerHTML;
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents;
-    window.location.reload();
+  const handleCustomerChange = (event) => {
+    setSelectedCustomer(event.target.value);
   };
-
-  // Calculate summary row for customer report
-  const customerLoans = reportData.customerData.customerLoans;
-  const totalLoanAmount = customerLoans.reduce((sum, c) => sum + (parseFloat(c.loanAmount) || 0), 0);
-  const totalPaidAmount = customerLoans.reduce((sum, c) => sum + (c.totalPaid || 0), 0);
-  const totalRemainingAmount = customerLoans.reduce((sum, c) => sum + (c.remainingBalance || 0), 0);
-  const totalInterest = customerLoans.reduce((sum, c) => sum + (c.interest || 0), 0);
-  const totalCustomers = customerLoans.length;
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
   }
 
-  return (
-    <Box>
-      {/* Shop Selection */}
-      <Box sx={{ mb: 3 }}>
-        <FormControl fullWidth>
-          <InputLabel>{translations.common.selectShop}</InputLabel>
-          <Select
-            value={selectedShop}
-            onChange={handleShopChange}
-            label={translations.common.selectShop}
-          >
-            {shops.map((shop) => (
-              <MenuItem key={shop.id} value={shop.name}>
-                {shop.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
+  // Filter reports for selected shop
+  const filteredReports = selectedShop
+    ? reports.filter(r => r.shop.shopName === selectedShop)
+    : [];
 
-      {!selectedShop ? (
-        <Typography variant="h6" align="center" color="textSecondary">
-          {translations.common.pleaseSelectShop}
-        </Typography>
-      ) : (
-        <>
-          {/* Customer Report Table (Printable) */}
-          <Box sx={{ mt: 4, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="outlined" onClick={handlePrint}>प्रिंट करा</Button>
-          </Box>
-          <Box ref={printRef} sx={{ background: '#fff', p: 2, mb: 4 }}>
-            <Typography variant="h6" align="center" gutterBottom>
-              {selectedShop} - ग्राहक अहवाल
-            </Typography>
-            <TableContainer sx={{ border: '1px solid #000', maxWidth: '100%', '@media print': { boxShadow: 'none', border: '1px solid #000' } }}>
-              <Table size="small" sx={{ minWidth: 900, border: '1px solid #000', '@media print': { border: '1px solid #000' } }}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ border: '1px solid #000' }}>अ.क्र.</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>नाव</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>फोन</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>कर्ज रक्कम</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>एकूण परतफेड</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>बाकी रक्कम</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>एकूण व्याज</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>व्याज दर (%)</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>कर्ज सुरुवात</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>कर्ज समाप्ती</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>सोने वजन (ग्राम)</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>सोने शुद्धता</TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}>स्थिती</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {customerLoans.map((customer, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell sx={{ border: '1px solid #000' }}>{toMarathiNumber(idx + 1)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{toMarathiName(customer.customerName)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{toMarathiName(customer.phone)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{formatMarathiCurrency(customer.loanAmount)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{formatMarathiCurrency(customer.totalPaid)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{formatMarathiCurrency(customer.remainingBalance)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{formatMarathiCurrency(customer.interest)}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{toMarathiNumber(customer.interestRate || shopSettings.interestRate)}%</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{customer.startDate ? formatMarathiDate(customer.startDate) : '-'}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{customer.endDate ? formatMarathiDate(customer.endDate) : '-'}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{customer.goldWeight ? toMarathiNumber(customer.goldWeight) : '-'}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{customer.goldPurity || '-'}</TableCell>
-                      <TableCell sx={{ border: '1px solid #000' }}>{customer.status === 'closed' ? 'बंद' : 'चालू'}</TableCell>
-                    </TableRow>
-                  ))}
-                  {/* Summary Row */}
-                  <TableRow>
-                    <TableCell sx={{ border: '1px solid #000' }} colSpan={3}><b>एकूण</b></TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}><b>{formatMarathiCurrency(totalLoanAmount)}</b></TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}><b>{formatMarathiCurrency(totalPaidAmount)}</b></TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}><b>{formatMarathiCurrency(totalRemainingAmount)}</b></TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }}><b>{formatMarathiCurrency(totalInterest)}</b></TableCell>
-                    <TableCell sx={{ border: '1px solid #000' }} colSpan={5}><b>एकूण ग्राहक: {toMarathiNumber(totalCustomers)}</b></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        </>
-      )}
+  // Get customers for selected shop
+  const customersList = filteredReports.length > 0 ? filteredReports[0].customers : [];
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
+  // Filter for selected customer
+  const displayedCustomers = selectedCustomer
+    ? customersList.filter(c => c.name === selectedCustomer)
+    : customersList;
+
+
+
+const handlePrint = () => {
+  if (!selectedCustomer) return;
+  const printContents = `<div class="print-container">${printRef.current.innerHTML}</div>`;
+  const printWindow = window.open('', 'printWindow');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Print</title>
+        <style>
+          body {
+            margin: 0;
+            font-family: 'Noto Sans Devanagari', 'Arial', sans-serif;
+            background: #fff;
+            color: #000;
+          }
+          .print-container {
+            width: 1000px;
+            margin: 0 auto;
+          }
+          h5, h6, h2, h3, h4 {
+            margin: 0;
+            font-family: inherit;
+          }
+          .MuiTypography-root {
+            font-family: inherit !important;
+          }
+          .MuiPaper-root {
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+            margin-bottom: 24px !important;
+            padding: 16px !important;
+          }
+          table {
+            page-break-inside: avoid;
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 8px;
+            background: #fff;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 6px 4px;
+            text-align: center;
+            font-size: 14px;
+          }
+          th {
+            background: #f5f5f5;
+            font-weight: bold;
+          }
+          @media print {
+            body {
+              margin: 0;
+              background: #fff;
+            }
+            .print-container {
+              width: 1000px;
+              margin: 0 auto;
+            }
+            .MuiPaper-root {
+              box-shadow: none !important;
+              border: 2px solid #000 !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        </style>
+      </head>
+      <body>${printContents}</body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
+};
+
+
+return (
+  <Box sx={{ p: 3, background: '#fff' }}>
+    {/* Flex row for shop, customer, and print */}
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        flexWrap: { xs: 'wrap', sm: 'nowrap' },
+        mb: 3,
+        background: '#f8f9fa',
+        p: 2,
+        borderRadius: 2,
+        boxShadow: 1,
+      }}
+    >
+      {/* Shop Dropdown */}
+      <FormControl sx={{ minWidth: 220, flex: '0 1 auto' }} size="small" variant="outlined">
+        <InputLabel id="shop-select-label">दुकान निवडा</InputLabel>
+        <Select
+          labelId="shop-select-label"
+          value={selectedShop}
+          label="दुकान निवडा"
+          onChange={handleShopChange}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          {shops.map((shop, idx) => (
+            <MenuItem key={shop.shopName} value={shop.shopName}>
+              {shop.shopName}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {/* Customer Dropdown */}
+      <FormControl
+        sx={{
+          minWidth: 220,
+          flex: '0 1 auto',
+          display: selectedShop ? 'flex' : 'none',
+        }}
+        size="small"
+        variant="outlined"
+      >
+        <InputLabel id="customer-select-label">ग्राहक निवडा</InputLabel>
+        <Select
+          labelId="customer-select-label"
+          value={selectedCustomer}
+          label="ग्राहक निवडा"
+          onChange={handleCustomerChange}
+        >
+          {customersList.map((customer, idx) => (
+            <MenuItem key={customer.accountNo || idx} value={customer.name}>
+              {customer.name}
+            </MenuItem>
+          ))}
+        </Select>
+
+      </FormControl>
+      <FormControl sx={{ minWidth: 160, flex: '0 1 auto' }} size="small" variant="outlined">
+  <TextField
+    label="महिना निवडा"
+    type="month"
+    value={selectedMonth}
+    onChange={e => setSelectedMonth(e.target.value)}
+    size="small"
+    InputLabelProps={{ shrink: true }}
+  />
+</FormControl>
+
+      {/* Print Button */}
+      <Box
+        sx={{
+          display: selectedCustomer ? 'flex' : 'none',
+          alignItems: 'center',
+          ml: 'auto',
+          gap: 1.5,
+        }}
+      >
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+          रिपोर्ट प्रिंट करा
+        </Typography>
+        <PrintIcon
+          onClick={handlePrint}
+          sx={{
+            cursor: 'pointer',
+            color: '#1976d2',
+            fontSize: 28,
+            '&:hover': { color: '#115293' },
+            transition: 'color 0.2s',
+          }}
+        />
+      </Box>
     </Box>
-  );
+
+    
+
+    {filteredReports.length === 0 && (
+      <Typography align="center" sx={{ mt: 2 }}>कृपया दुकान निवडा</Typography>
+    )}
+
+    <div ref={printRef}>
+      {selectedCustomer && filteredReports.map((report, idx) => (
+<Box key={report.shop.shopName} sx={{ mb: 4 }}>
+  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+    <Typography variant="h5" gutterBottom>
+      {report.shop.shopName}
+    </Typography>
+    <Typography gutterBottom>
+      मुदत 01/04/2023 ते 31/03/2024
+    </Typography>
+  </Box>
+          {displayedCustomers.map((customer, cidx) => (
+            <Paper
+              key={cidx}
+              variant="outlined"
+              sx={{
+                mb: 3,
+                p: 2,
+                border: '2px solid #000',
+                background: '#fff',
+                boxShadow: 'none'
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="subtitle1">
+                  खाते क्र: {customer.accountNo || '-'}
+                </Typography>
+                <Typography variant="subtitle1">
+                  {customer.name || '-'}, {customer.address || '-'}
+                </Typography>
+                <Typography variant="subtitle1">
+                  {report.shop.shopName}
+                </Typography>
+              </Box>
+              <TableContainer>
+                <Table
+                  size="small"
+                  sx={{
+                    border: '1px solid #000',
+                    borderCollapse: 'collapse',
+                    background: '#fff'
+                  }}
+                >
+<TableHead>
+  <TableRow>
+    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 80, fontWeight: 'bold', background: '#f5f5f5' }}>तारीख</TableCell>
+    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>कर्ज घेतलेली अगर नावे लिहिलेली मुदलाची रक्कम</TableCell>
+    <TableCell colSpan={3} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>परत केलेली चिठ्ठी जमा केलेली रक्कम</TableCell>
+    <TableCell colSpan={2} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>दरम्यान व्यवहारांतून येणे असलेली रक्कम</TableCell>
+    <TableCell colSpan={3} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>व्याजाचा हिशोबाचा तपशील</TableCell>
+    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>कीट पान</TableCell>
+    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>पा नंबर</TableCell>
+  </TableRow>
+  <TableRow>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मुदल</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>व्याज</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>एकूण रक्कम</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मुदल</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>व्याज</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>येणे</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>महिने</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मी व्याज</TableCell>
+  </TableRow>
+</TableHead>
+<TableBody>
+  <TableRow>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.date || '-'}
+    </TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.goldRate || '-'}
+    </TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.returnInterest || '-'}
+    </TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.returnTotal || '-'}
+    </TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.duringPrincipal || '-'}
+    </TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.duringInterest || '-'}
+    </TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+      {customer.due || '-'}
+    </TableCell>
+  <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+    {customer.months || '-'}
+  </TableCell>
+  {/* Remove this cell:
+  <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+    {customer.monthlyInterest || '-'}
+  </TableCell>
+  */}
+  <TableCell colSpan={2} align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+    {customer.item || '-'}
+  </TableCell>
+  <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+    {customer.kitPage || '-'}
+  </TableCell>
+  <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+    {customer.paNumber || '-'}
+  </TableCell>
+  </TableRow>
+ {customer.sodDate && (
+    <TableRow>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+        {customer.sodDate || '-'}
+      </TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.goldRate || '-'}</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.vayaj || '-'}</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
+        {(() => {
+          // Convert Devanagari to English digits
+          const toEnglishDigits = str =>
+            String(str).replace(/[०-९]/g, d => '0123456789'['०१२३४५६७८९'.indexOf(d)]);
+          // Convert English digits to Devanagari
+          const toMarathiDigits = num =>
+            String(num).replace(/[0-9]/g, d => '०१२३४५६७८९'[d]);
+
+          const principal = Number(toEnglishDigits(customer.goldRate));
+          const interest = Number(toEnglishDigits(customer.vayaj));
+          if (!isNaN(principal) && !isNaN(interest) && customer.goldRate && customer.vayaj) {
+            const sum = principal + interest;
+            return toMarathiDigits(sum);
+          }
+          return '-';
+        })()}
+      </TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+    </TableRow>
+  )}
+  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          ))}
+        </Box>
+      ))}
+      <Typography align="center" sx={{ mt: 2 }}>Page 1 of 1</Typography>
+    </div>
+  </Box>
+);
+
 }
 
 export default Reports;

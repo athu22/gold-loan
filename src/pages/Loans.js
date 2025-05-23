@@ -47,13 +47,13 @@ function Loans() {
     fetchShops();
   }, []);
 
-  useEffect(() => {
-    if (selectedShop) {
-      fetchTableData(selectedShop);
-    } else {
-      setTableData([]);
-    }
-  }, [selectedShop]);
+useEffect(() => {
+  if (selectedShop && selectedMonth) {
+    fetchTableData(selectedShop, selectedMonth);
+  } else {
+    setTableData([]);
+  }
+}, [selectedShop, selectedMonth]);
 
   const fetchShops = async () => {
     setLoading(true);
@@ -73,31 +73,22 @@ function Loans() {
     }
   };
 
-  const fetchTableData = async (shopName) => {
-    setLoading(true);
-    try {
-      const response = await getTableData(shopName);
-      if (response.success && response.data) {
-        // Convert to array and sort by date
-        const dataArray = Object.entries(response.data)
-          .map(([id, data]) => ({ id, ...data }))
-          .sort((a, b) => {
-            // Convert dates to timestamps for comparison
-            const dateA = a.date ? new Date(a.date).getTime() : 0;
-            const dateB = b.date ? new Date(b.date).getTime() : 0;
-            return dateA - dateB; // Sort in ascending order
-          });
-        setTableData(dataArray);
-      } else {
-        setTableData([]);
-      }
-    } catch (error) {
-      setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
+const fetchTableData = async (shopName, month) => {
+  setLoading(true);
+  try {
+    const response = await getTableData(shopName, month); // Pass month
+    if (response.success && Array.isArray(response.data)) {
+      setTableData(response.data);
+    } else {
       setTableData([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
+    setTableData([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
     const filteredTableData = React.useMemo(() => {
     if (!selectedMonth) return tableData;
@@ -214,11 +205,7 @@ const handlePrint = () => {
   };
 };
 
-  const handleRefresh = () => {
-    if (selectedShop) {
-      fetchTableData(selectedShop);
-    }
-  };
+
 
   const groupedRows = React.useMemo(() => {
     const dateMap = {};
@@ -248,14 +235,14 @@ const handlePrint = () => {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">कॅश बुक</Typography>
         <Stack direction="row" spacing={2}>
-          <Button
+          {/* <Button
             variant="contained"
             startIcon={<RefreshIcon />}
             onClick={handleRefresh}
             disabled={!selectedShop || loading}
           >
             रिफ्रेश
-          </Button>
+          </Button> */}
           <Button
             variant="contained"
             startIcon={<PrintIcon />}
