@@ -4,7 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
+// import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Loans from './pages/Loans';
 import Reports from './pages/Reports';
@@ -60,8 +60,8 @@ function App() {
           <Navbar translations={translations.routes} />
           <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/customers" element={<Customers />} />
+              {/* <Route path="/" element={<Dashboard />} /> */}
+              <Route path="/" element={<Customers />} />
               <Route path="/loans" element={<Loans />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/bhaudal-khate" element={<BhaudalKhate />} />

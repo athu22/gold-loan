@@ -32,8 +32,8 @@ const Navbar = ({ translations }) => {
   };
 
   const menuItems = [
-    { text: translations.dashboard, icon: <DashboardIcon />, path: '/' },
-    { text: translations.customers, icon: <PeopleIcon />, path: '/customers' },
+    // { text: translations.dashboard, icon: <DashboardIcon />, path: '/' },
+    { text: translations.customers, icon: <PeopleIcon />, path: '/' },
     { text: translations.loans, icon: <AccountBalanceIcon />, path: '/loans' },
     { text: translations.reports, icon: <AssessmentIcon />, path: '/reports' },
     { text: 'भौदल खाते', icon: <TableChartIcon />, path: '/bhaudal-khate' },

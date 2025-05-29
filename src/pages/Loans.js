@@ -40,7 +40,7 @@ function Loans() {
   
   // Table headings as per your image
   const headings = [
-    'तारीख', 'जमा तपशील', 'खाते पान', 'रक्कम', '', '', 'तारीख', 'नावेचा तपशील', 'खाते पान', 'रक्कम', '', '',
+    'तारीख', 'जमा तपशील', 'खाते पान', 'रक्कम', 'व्याज', '', 'तारीख', 'नावेचा तपशील', 'खाते पान', 'रक्कम', '', '',
   ];
 
   useEffect(() => {
@@ -72,37 +72,71 @@ useEffect(() => {
       setLoading(false);
     }
   };
-
 const fetchTableData = async (shopName, month) => {
   setLoading(true);
   try {
-    const response = await getTableData(shopName, month); // Pass month
-    if (response.success && Array.isArray(response.data)) {
-      setTableData(response.data);
-    } else {
-      setTableData([]);
+    // Parse selected month
+    const [year, monthNum] = month.split('-').map(Number);
+
+    // Calculate previous month (handle January)
+    let prevYear = year;
+    let prevMonth = monthNum - 1;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear = year - 1;
     }
+    const prevMonthStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+
+    // Fetch current and previous month data
+    const [currRes, prevRes] = await Promise.all([
+      getTableData(shopName, month),
+      getTableData(shopName, prevMonthStr),
+    ]);
+
+    // Combine rows: all from current, plus from previous where sodDate is in selected month
+    let combined = Array.isArray(currRes.data) ? currRes.data : [];
+    if (Array.isArray(prevRes.data)) {
+      const [selYear, selMonth] = month.split('-').map(Number);
+      const prevMonthSodRows = prevRes.data.filter(row => {
+        if (!row || !row.sodDate) return false;
+        const d = new Date(row.sodDate);
+        return d.getFullYear() === selYear && (d.getMonth() + 1) === selMonth;
+      });
+      combined = [...combined, ...prevMonthSodRows];
+    }
+
+    setTableData(combined);
   } catch (error) {
+    console.error('Error fetching table data:', error);
     setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
     setTableData([]);
   } finally {
     setLoading(false);
   }
 };
+const filteredTableData = React.useMemo(() => {
+  const [year, month] = selectedMonth.split('-').map(Number);
 
-    const filteredTableData = React.useMemo(() => {
-    if (!selectedMonth) return tableData;
-    const [year, month] = selectedMonth.split('-');
-    return tableData.filter(row => {
-      // Check both loan date and sodDate for the month
-      const datesToCheck = [row.date, row.sodDate].filter(Boolean);
-      return datesToCheck.some(dateStr => {
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        return d.getFullYear() === Number(year) && (d.getMonth() + 1) === Number(month);
-      });
-    });
-  }, [tableData, selectedMonth]);
+  return tableData.filter(row => {
+    if (!row) return false;
+
+    // Include if date is in selected month
+    if (row.date) {
+      const d = new Date(row.date);
+      if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
+        return true;
+      }
+    }
+    // Include if sodDate is in selected month
+    if (row.sodDate) {
+      const d = new Date(row.sodDate);
+      if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
+        return true;
+      }
+    }
+    return false;
+  });
+}, [tableData, selectedMonth]);
 
   const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
 
@@ -181,6 +215,7 @@ const handlePrint = () => {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
+              
           }
         </style>
       </head>
@@ -207,28 +242,35 @@ const handlePrint = () => {
 
 
 
-  const groupedRows = React.useMemo(() => {
-    const dateMap = {};
-    filteredTableData.forEach(row => {
-      if (row.date) {
-        const key = row.date;
-        if (!dateMap[key]) dateMap[key] = { jama: null, sod: null };
-        dateMap[key].jama = row;
+const groupedRows = React.useMemo(() => {
+  const [year, month] = selectedMonth.split('-').map(Number);
+  const dateSet = new Set();
+
+  // Collect all unique dates from both date and sodDate fields in the selected month
+  filteredTableData.forEach(row => {
+    if (row.date) {
+      const d = new Date(row.date);
+      if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
+        dateSet.add(row.date);
       }
-      if (row.sodDate) {
-        const key = row.sodDate;
-        if (!dateMap[key]) dateMap[key] = { jama: null, sod: null };
-        dateMap[key].sod = row;
+    }
+    if (row.sodDate) {
+      const d = new Date(row.sodDate);
+      if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
+        dateSet.add(row.sodDate);
       }
+    }
+  });
+
+  // For each unique date, find the matching jama and sod rows
+  return Array.from(dateSet)
+    .sort((a, b) => new Date(a) - new Date(b))
+    .map(date => {
+      const jama = filteredTableData.find(row => row.sodDate === date) || null;
+      const sod = filteredTableData.find(row => row.date === date) || null;
+      return { date, jama, sod };
     });
-    return Object.keys(dateMap)
-      .sort((a, b) => new Date(a) - new Date(b))
-      .map(date => ({
-        date,
-        jama: dateMap[date].jama,
-        sod: dateMap[date].sod,
-      }));
-  }, [filteredTableData]);
+}, [filteredTableData, selectedMonth]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -299,22 +341,42 @@ const handlePrint = () => {
     </TableRow>
   ) : (
     groupedRows.map((row, idx) => (
-      <TableRow key={idx}>
-        {/* जमा तपशील */}
-        <TableCell align="center">{row.jama ? formatMarathiDate(row.date) : ''}</TableCell>
-        <TableCell align="center">{row.jama ? `श्री ${row.jama.name}` : ''}</TableCell>
-        <TableCell align="center">{row.jama ? row.jama.accountNo : ''}</TableCell>
-        <TableCell align="center">{row.jama ? formatMarathiCurrency(row.jama.goldRate) : ''}</TableCell>
-        <TableCell align="center"></TableCell>
-        <TableCell align="center"></TableCell>
-        {/* नावेचा तपशील */}
-        <TableCell align="center">{row.sod ? formatMarathiDate(row.date) : ''}</TableCell>
-        <TableCell align="center">{row.sod ? `श्री ${row.sod.name}` : ''}</TableCell>
-        <TableCell align="center">{row.sod ? row.sod.accountNo : ''}</TableCell>
-        <TableCell align="center">{row.sod ? formatMarathiCurrency(row.sod.goldRate) : ''}</TableCell>
-        <TableCell align="center"></TableCell>
-        <TableCell align="center"></TableCell>
-      </TableRow>
+      <React.Fragment key={idx}>
+        <TableRow>
+          {/* जमा (Jama) section - uses sodDate */}
+          <TableCell align="center">{row.jama ? formatMarathiDate(row.jama.sodDate) : ''}</TableCell>
+          <TableCell align="center">{row.jama ? `श्री ${row.jama.name} बाकी जमा` : ''}</TableCell>
+          <TableCell align="center">{row.jama ? row.jama.accountNo : ''}</TableCell>
+          <TableCell align="center">{row.jama ? formatMarathiCurrency(row.jama.goldRate) : ''}</TableCell>
+          <TableCell align="center"></TableCell>
+          <TableCell align="center"></TableCell>
+          {/* नावेचा (Sod) section - uses date */}
+          <TableCell align="center">{row.sod ? formatMarathiDate(row.sod.date) : ''}</TableCell>
+          <TableCell align="center">{row.sod ? `श्री ${row.sod.name} बाकी नावे` : ''}</TableCell>
+          <TableCell align="center">{row.sod ? row.sod.accountNo : ''}</TableCell>
+          <TableCell align="center">{row.sod ? formatMarathiCurrency(row.sod.goldRate) : ''}</TableCell>
+          <TableCell align="center"></TableCell>
+          <TableCell align="center"></TableCell>
+        </TableRow>
+        {/* व्याज row for जमा तपशील */}
+        {row.jama && row.jama.vayaj ? (
+          <TableRow>
+            <TableCell align="center">{row.jama ? formatMarathiDate(row.jama.sodDate) : ''}</TableCell>
+            <TableCell align="center">श्री व्याज खाते जमा</TableCell>
+            <TableCell align="center"></TableCell>
+            <TableCell align="center"></TableCell>
+            <TableCell align="center">{formatMarathiCurrency(row.jama.vayaj)}</TableCell>
+            <TableCell align="center"></TableCell>
+            {/* Empty cells for नावेचा तपशील side */}
+            <TableCell align="center"></TableCell>
+            <TableCell align="center"></TableCell>
+            <TableCell align="center"></TableCell>
+            <TableCell align="center"></TableCell>
+            <TableCell align="center"></TableCell>
+            <TableCell align="center"></TableCell>
+          </TableRow>
+        ) : null}
+      </React.Fragment>
     ))
   )}
 </TableBody>

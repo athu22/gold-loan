@@ -67,6 +67,17 @@ function Customers() {
     message: '',
     severity: 'success',
   });
+  function toMarathiNumber(num) {
+  return String(num).replace(/\d/g, d => '०१२३४५६७८९'[d]);
+}
+
+function toMarathiDate(dateStr) {
+  if (!dateStr) return '';
+  // Expecting dateStr in 'yyyy-mm-dd'
+  const [yyyy, mm, dd] = dateStr.split('-');
+  const formatted = [dd, mm, yyyy].join('/');
+  return formatted.replace(/\d/g, d => '०१२३४५६७८९'[d]);
+}
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
   const now = new Date();
@@ -362,15 +373,15 @@ const fetchTableData = async (shopName, month = selectedMonth) => {
           <tbody>
             ${rows.map((row, idx) => `
               <tr>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${idx + 1}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${toMarathiNumber(idx + 1)}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.accountNo || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.pavtiNo || ''}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.date || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${toMarathiDate(row.date)}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.name || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.item || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: right;">${row.goldRate || ''}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.sodDate || ''}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.divas || ''}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${toMarathiDate(row.sodDate)}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">  ${toMarathiNumber(row.divas || '')}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.moparu || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: right;">${row.vayaj || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.address || ''}</td>
@@ -429,6 +440,16 @@ const fetchTableData = async (shopName, month = selectedMonth) => {
       }
     }
 
+    // When date is entered, ensure it's treated as a jama entry
+    if (field === 'date' && value) {
+      updatedRows[index].isJama = true;
+    }
+
+    // When sodDate is entered, ensure it's treated as a sod entry
+    if (field === 'sodDate' && value) {
+      updatedRows[index].isSod = true;
+    }
+
     setRows(updatedRows);
   };
 
@@ -451,12 +472,18 @@ const handleSave = async () => {
   }
   setLoading(true);
   try {
-    const response = await saveTableData(selectedShop, selectedMonth, rows); // Pass month
-    if (response.success) {
-      setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
-    } else {
+    // Filter out undefined/null/empty rows
+    const validRows = rows.filter(
+      row => row && (row.date || row.sodDate) // Only rows with at least one date
+    );
+
+    // Save all rows for the selected month
+    const response = await saveTableData(selectedShop, selectedMonth, validRows);
+    if (!response.success) {
       throw new Error(response.error || 'सेव्ह करताना त्रुटी आली');
     }
+
+    setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
   } catch (error) {
     setSnackbar({ open: true, message: error.message, severity: 'error' });
   } finally {
@@ -599,16 +626,18 @@ const handleSave = async () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {rows.map((row, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell align="center">{idx + 1}</TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.accountNo}
-                          onChange={e => handleCellChange(idx, 'accountNo', e.target.value)}
-                          variant="standard"
-                        />
-                      </TableCell>
+  {rows.map((row, idx) => {
+    if (!row) return null; // Skip undefined/null rows
+    return (
+      <TableRow key={idx}>
+        <TableCell align="center">{toMarathiNumber(idx + 1)}</TableCell>
+        <TableCell align="center">
+          <TextField
+            value={row.accountNo || ''}
+            onChange={e => handleCellChange(idx, 'accountNo', e.target.value)}
+            variant="standard"
+          />
+        </TableCell>
                       <TableCell align="center">
                         <TextField
                           value={row.pavtiNo}
@@ -623,6 +652,9 @@ const handleSave = async () => {
                           onChange={e => handleCellChange(idx, 'date', e.target.value)}
                           variant="standard"
                         />
+                          <div style={{ fontSize: '0.85em', color: '#888' }}>
+    {toMarathiDate(row.date)}
+  </div>
                       </TableCell>
                       <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
                         <TextField
@@ -657,6 +689,9 @@ const handleSave = async () => {
                           onChange={e => handleCellChange(idx, 'sodDate', e.target.value)}
                           variant="standard"
                         />
+                                                  <div style={{ fontSize: '0.85em', color: '#888' }}>
+    {toMarathiDate(row.sodDate)}
+  </div>
                       </TableCell>
                       <TableCell align="center">
                         <TextField
@@ -664,6 +699,7 @@ const handleSave = async () => {
                           onChange={e => handleCellChange(idx, 'divas', e.target.value)}
                           variant="standard"
                         />
+
                       </TableCell>
                       <TableCell align="center">
                         <TextField
@@ -694,14 +730,15 @@ const handleSave = async () => {
                           variant="standard"
                         />
                       </TableCell>
-                      <TableCell align="center">
-                        <IconButton color="error" onClick={() => handleDeleteRow(idx)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+        <TableCell align="center">
+          <IconButton color="error" onClick={() => handleDeleteRow(idx)}>
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+    );
+  })}
+</TableBody>
               </Table>
             </TableContainer>
           )}

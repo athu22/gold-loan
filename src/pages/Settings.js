@@ -46,29 +46,30 @@ import { saveShopSettings, getShopSettings, getAllShops } from '../firebase/serv
 function Settings() {
   const [loading, setLoading] = useState(true);
   const [shops, setShops] = useState([]);
-  const [settings, setSettings] = useState({
-    goldRate: 6000,
-    interestRate: 2.5,
-    maxLoanPercentage: 70,
-    enableNotifications: true,
-    enableAutoReminders: true,
-    backupFrequency: 'daily',
-    // Shop details
-    shopName: '',
-    ownerName: '',
-    address: '',
-    phone: '',
-    email: '',
-    gstNumber: '',
-    licenseNumber: '',
-    openingTime: '09:00',
-    closingTime: '18:00',
-  });
+const [settings, setSettings] = useState({
+  goldRate: 6000,
+  interestRate: 2.5,
+  maxLoanPercentage: 70,
+  enableNotifications: true,
+  enableAutoReminders: true,
+  backupFrequency: 'daily',
+  shopName: '',
+  ownerName: '',
+  address: '',
+  phone: '',
+  email: '',
+  gstNumber: '',
+  licenseNumber: '',
+  openingTime: '09:00',
+  closingTime: '18:00',
+  amount: '', // <-- Add this line
+});
 
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogType, setDialogType] = useState('');
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [shopSelected, setShopSelected] = useState(false);
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -80,33 +81,30 @@ function Settings() {
     fetchShops();
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
+  // Only load settings if the shop name matches an existing shop
+  const selectedShop = shops.find(shop => shop.name === settings.shopName);
+  if (selectedShop) {
     const loadShopSettings = async () => {
-      if (settings.shopName) {
-        try {
-          setLoading(true);
-          const response = await getShopSettings(settings.shopName);
-          if (response.success && response.data) {
-            setSettings(prev => ({
-              ...prev,
-              ...response.data
-            }));
-          }
-        } catch (error) {
-          console.error('Error loading shop settings:', error);
-          setSnackbar({
-            open: true,
-            message: 'दुकान सेटिंग्ज मिळवताना त्रुटी आली',
-            severity: 'error',
-          });
-        } finally {
-          setLoading(false);
+      try {
+        setLoading(true);
+        const response = await getShopSettings(settings.shopName);
+        if (response.success && response.data) {
+          setSettings(prev => ({
+            ...prev,
+            ...response.data
+          }));
         }
+      } catch (error) {
+        // ...
+      } finally {
+        setLoading(false);
       }
     };
-
     loadShopSettings();
-  }, [settings.shopName]);
+  }
+  // eslint-disable-next-line
+}, [settings.shopName, shops]);
 
   const fetchShops = async () => {
     try {
@@ -132,68 +130,13 @@ function Settings() {
     }
   };
 
-  const handleSettingChange = async (e) => {
-    const { name, value, checked } = e.target;
-    
-    if (name === 'shopName') {
-      if (!value) {
-        // Clear all fields when shop name is cleared
-        setSettings({
-          goldRate: 6000,
-          interestRate: 2.5,
-          maxLoanPercentage: 70,
-          enableNotifications: true,
-          enableAutoReminders: true,
-          backupFrequency: 'daily',
-          shopName: '',
-          ownerName: '',
-          address: '',
-          phone: '',
-          email: '',
-          gstNumber: '',
-          licenseNumber: '',
-          openingTime: '09:00',
-          closingTime: '18:00',
-        });
-      } else {
-        // Find the selected shop
-        const selectedShop = shops.find(shop => shop.name === value);
-        if (selectedShop) {
-          // Update all settings with the selected shop's data
-          setSettings(prev => ({
-            ...prev,
-            shopName: selectedShop.name,
-            ownerName: selectedShop.ownerName || '',
-            address: selectedShop.address || '',
-            phone: selectedShop.phone || '',
-            email: selectedShop.email || '',
-            gstNumber: selectedShop.gstNumber || '',
-            licenseNumber: selectedShop.licenseNumber || '',
-            openingTime: selectedShop.openingTime || '09:00',
-            closingTime: selectedShop.closingTime || '18:00',
-            goldRate: selectedShop.goldRate || 6000,
-            interestRate: selectedShop.interestRate || 2.5,
-            maxLoanPercentage: selectedShop.maxLoanPercentage || 70,
-            enableNotifications: selectedShop.enableNotifications ?? true,
-            enableAutoReminders: selectedShop.enableAutoReminders ?? true,
-            backupFrequency: selectedShop.backupFrequency || 'daily',
-          }));
-        } else {
-          // If it's a new shop name, just update the shop name and keep other fields
-          setSettings(prev => ({
-            ...prev,
-            shopName: value
-          }));
-        }
-      }
-    } else {
-      // For other fields, update normally
-      setSettings(prev => ({
-        ...prev,
-        [name]: e.target.type === 'checkbox' ? checked : value,
-      }));
-    }
-  };
+const handleSettingChange = (e) => {
+  const { name, value, checked, type } = e.target;
+  setSettings(prev => ({
+    ...prev,
+    [name]: type === 'checkbox' ? checked : value,
+  }));
+};
 
   const handleSaveSettings = async () => {
     try {
@@ -286,45 +229,85 @@ function Settings() {
             <CardContent>
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6}>
-                  <Autocomplete
-                    freeSolo
-                    options={shops.map(shop => shop.name)}
-                    value={settings.shopName}
-                    onChange={(event, newValue) => {
-                      handleSettingChange({
-                        target: {
-                          name: 'shopName',
-                          value: newValue || ''
-                        }
-                      });
-                    }}
-                    onInputChange={(event, newValue) => {
-                      handleSettingChange({
-                        target: {
-                          name: 'shopName',
-                          value: newValue || ''
-                        }
-                      });
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        fullWidth
-                        label="दुकानाचे नाव"
-                        name="shopName"
-                        required
-                        placeholder="नवीन दुकानाचे नाव टाका किंवा विद्यमान दुकान निवडा"
-                        InputProps={{
-                          ...params.InputProps,
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <StoreIcon color="action" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    )}
-                  />
+<Autocomplete
+  freeSolo
+  options={shops.map(shop => shop.name)}
+  value={settings.shopName}
+  onChange={async (event, newValue) => {
+    const selectedShop = shops.find(shop => shop.name === newValue);
+    if (selectedShop) {
+      setLoading(true);
+      try {
+        const response = await getShopSettings(selectedShop.name);
+        if (response.success && response.data) {
+          setSettings({
+            ...response.data,
+            shopName: selectedShop.name,
+          });
+        }
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: 'दुकान सेटिंग्ज मिळवताना त्रुटी आली',
+          severity: 'error',
+        });
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setSettings(prev => ({
+        ...prev,
+        shopName: newValue || ''
+      }));
+    }
+  }}
+  onInputChange={(event, newInputValue) => {
+    if (!newInputValue) {
+      // Clear all fields if input is cleared
+      setSettings({
+        goldRate: 6000,
+        interestRate: 2.5,
+        maxLoanPercentage: 70,
+        enableNotifications: true,
+        enableAutoReminders: true,
+        backupFrequency: 'daily',
+        shopName: '',
+        ownerName: '',
+        address: '',
+        phone: '',
+        email: '',
+        gstNumber: '',
+        licenseNumber: '',
+        openingTime: '09:00',
+        closingTime: '18:00',
+        amount: '',
+      });
+    } else {
+      setSettings(prev => ({
+        ...prev,
+        shopName: newInputValue
+      }));
+    }
+  }}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      fullWidth
+      label="दुकानाचे नाव"
+      name="shopName"
+      required
+      placeholder="नवीन दुकानाचे नाव टाका किंवा विद्यमान दुकान निवडा"
+      InputProps={{
+        ...params.InputProps,
+        startAdornment: (
+          <InputAdornment position="start">
+            <StoreIcon color="action" />
+          </InputAdornment>
+        ),
+      }}
+    />
+  )}
+/>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -503,6 +486,24 @@ function Settings() {
                     }}
                   />
                 </Grid>
+                <Grid item xs={12} sm={6}>
+  <TextField
+    fullWidth
+    label="बंडवल"
+    name="amount"
+    type="number"
+    value={settings.amount}
+    onChange={handleSettingChange}
+    required
+    InputProps={{
+      startAdornment: (
+        <InputAdornment position="start">
+          <MoneyIcon color="action" />
+        </InputAdornment>
+      ),
+    }}
+  />
+</Grid>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
