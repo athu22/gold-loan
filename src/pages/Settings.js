@@ -62,7 +62,8 @@ const [settings, setSettings] = useState({
   licenseNumber: '',
   openingTime: '09:00',
   closingTime: '18:00',
-  amount: '', // <-- Add this line
+  amount: '',
+  balanceAmount: '',
 });
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -281,6 +282,7 @@ const handleSettingChange = (e) => {
         openingTime: '09:00',
         closingTime: '18:00',
         amount: '',
+        balanceAmount: '',
       });
     } else {
       setSettings(prev => ({
@@ -487,23 +489,41 @@ const handleSettingChange = (e) => {
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-  <TextField
-    fullWidth
-    label="बंडवल"
-    name="amount"
-    type="number"
-    value={settings.amount}
-    onChange={handleSettingChange}
-    required
-    InputProps={{
-      startAdornment: (
-        <InputAdornment position="start">
-          <MoneyIcon color="action" />
-        </InputAdornment>
-      ),
-    }}
-  />
-</Grid>
+                  <TextField
+                    fullWidth
+                    label="बंडवल"
+                    name="amount"
+                    type="number"
+                    value={settings.amount}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MoneyIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="पुरांत बाकी"
+                    name="balanceAmount"
+                    type="number"
+                    value={settings.balanceAmount}
+                    onChange={handleSettingChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <MoneyIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth

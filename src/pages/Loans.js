@@ -21,9 +21,9 @@ import {
   TextField,
 } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { getAllShops, getTableData } from '../firebase/services';
-import { toMarathiName, formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
+// import RefreshIcon from '@mui/icons-material/Refresh';
+import { getAllShops, getTableData, getShopSettings } from '../firebase/services';
+import {  formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
 
 function Loans() {
   const [shops, setShops] = useState([]);
@@ -31,6 +31,9 @@ function Loans() {
   const [loading, setLoading] = useState(false);
   const [tableData, setTableData] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [settings, setSettings] = useState({
+    balanceAmount: 0
+  });
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     // Default to current month in YYYY-MM format
@@ -40,7 +43,7 @@ function Loans() {
   
   // Table headings as per your image
   const headings = [
-    'तारीख', 'जमा तपशील', 'खाते पान', 'रक्कम', 'व्याज', '', 'तारीख', 'नावेचा तपशील', 'खाते पान', 'रक्कम', '', '',
+    'तारीख', 'जमा तपशील', 'खाते पान', 'रक्कम', 'व्याज', 'तारीख', 'नावेचा तपशील', 'खाते पान', 'रक्कम'
   ];
 
   useEffect(() => {
@@ -54,6 +57,22 @@ useEffect(() => {
     setTableData([]);
   }
 }, [selectedShop, selectedMonth]);
+
+useEffect(() => {
+  if (selectedShop) {
+    const fetchSettings = async () => {
+      try {
+        const response = await getShopSettings(selectedShop);
+        if (response.success && response.data) {
+          setSettings(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }
+}, [selectedShop]);
 
   const fetchShops = async () => {
     setLoading(true);
@@ -210,12 +229,17 @@ const handlePrint = () => {
           .kharch-section {
             padding-left: 25%;
           }
+          .day-separator {
+            border-bottom: 2px solid #000;
+          }
+          .amount-cell {
+            font-weight: bold;
+          }
           @media print {
             body {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
-              
           }
         </style>
       </head>
@@ -240,11 +264,68 @@ const handlePrint = () => {
   };
 };
 
+// Add this function to convert numbers to Marathi words
+function numberToMarathiWords(num) {
+  if (!num || isNaN(num)) return '';
+  
+  const ones = ['', 'एक', 'दोन', 'तीन', 'चार', 'पाच', 'सहा', 'सात', 'आठ', 'नऊ', 'दहा',
+    'अकरा', 'बारा', 'तेरा', 'चौदा', 'पंधरा', 'सोळा', 'सतरा', 'अठरा', 'एकोणीस', 'वीस'];
+  const tens = ['', '', 'वीस', 'तीस', 'चाळीस', 'पन्नास', 'साठ', 'सत्तर', 'ऐंशी', 'नव्वद'];
+  const hundreds = ['', 'शंभर', 'दोनशे', 'तीनशे', 'चारशे', 'पाचशे', 'सहाशे', 'सातशे', 'आठशे', 'नऊशे'];
+  const thousands = ['', 'हजार', 'लाख', 'कोटी'];
 
+  if (num === 0) return 'शून्य';
+
+  let words = '';
+  let decimal = '';
+
+  // Handle decimal part
+  if (num.toString().includes('.')) {
+    const parts = num.toString().split('.');
+    num = parseInt(parts[0]);
+    decimal = parts[1];
+  }
+
+  // Convert to words
+  if (num >= 10000000) {
+    words += numberToMarathiWords(Math.floor(num / 10000000)) + ' कोटी ';
+    num %= 10000000;
+  }
+  if (num >= 100000) {
+    words += numberToMarathiWords(Math.floor(num / 100000)) + ' लाख ';
+    num %= 100000;
+  }
+  if (num >= 1000) {
+    words += numberToMarathiWords(Math.floor(num / 1000)) + ' हजार ';
+    num %= 1000;
+  }
+  if (num >= 100) {
+    words += hundreds[Math.floor(num / 100)] + ' ';
+    num %= 100;
+  }
+  if (num >= 20) {
+    words += tens[Math.floor(num / 10)] + ' ';
+    num %= 10;
+  }
+  if (num > 0) {
+    words += ones[num] + ' ';
+  }
+
+  // Add decimal part if exists
+  if (decimal) {
+    words += 'दशांश ' + decimal;
+  }
+
+  return words.trim();
+}
 
 const groupedRows = React.useMemo(() => {
   const [year, month] = selectedMonth.split('-').map(Number);
   const dateSet = new Set();
+
+  // Add first day of the month
+  const firstDayOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+  dateSet.add(firstDayOfMonth);
 
   // Collect all unique dates from both date and sodDate fields in the selected month
   filteredTableData.forEach(row => {
@@ -266,11 +347,46 @@ const groupedRows = React.useMemo(() => {
   return Array.from(dateSet)
     .sort((a, b) => new Date(a) - new Date(b))
     .map(date => {
-      const jama = filteredTableData.find(row => row.sodDate === date) || null;
+      // Special case for first day of month
+      if (date === firstDayOfMonth) {
+        return {
+          date,
+          jama: { sodDate: date, name: 'पुरांत', accountNo: '', goldRate: settings.balanceAmount || 0 },
+          sod: { date: date, name: 'पुरांत', accountNo: '', goldRate: settings.balanceAmount || 0 }
+        };
+      }
+
+      // Find all jama entries for this date
+      const jamaEntries = filteredTableData.filter(row => row.sodDate === date);
       const sod = filteredTableData.find(row => row.date === date) || null;
+
+      // Calculate total amount including interest for पुरांत entries
+      let totalAmount = 0;
+      let hasPurantEntry = false;
+      let interestAmount = 0;
+
+      jamaEntries.forEach(entry => {
+        if (entry.name === 'पुरांत') {
+          hasPurantEntry = true;
+          totalAmount += Number(entry.goldRate || 0);
+          if (entry.vayaj) {
+            interestAmount += Number(entry.vayaj);
+          }
+        }
+      });
+
+      // If there are पुरांत entries, combine them into one entry with total amount
+      const jama = hasPurantEntry ? {
+        sodDate: date,
+        name: 'पुरांत',
+        accountNo: '',
+        goldRate: totalAmount + interestAmount,
+        vayaj: interestAmount
+      } : jamaEntries[0] || null;
+
       return { date, jama, sod };
     });
-}, [filteredTableData, selectedMonth]);
+}, [filteredTableData, selectedMonth, settings.balanceAmount]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -325,7 +441,23 @@ const groupedRows = React.useMemo(() => {
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Paper} sx={{ overflowX: 'auto', width: '100%' }}>
+        <TableContainer 
+          component={Paper} 
+          sx={{ 
+            overflowX: 'auto', 
+            width: '100%',
+            boxShadow: 3,
+            '& .MuiTableCell-root': {
+              border: '1px solid rgba(224, 224, 224, 1)',
+              padding: '12px 8px',
+            },
+            '& .MuiTableHead-root .MuiTableCell-root': {
+              backgroundColor: '#f5f5f5',
+              fontWeight: 'bold',
+              fontSize: '1rem',
+            }
+          }}
+        >
           <Table id="loans-table" sx={{ minWidth: 1200 }}>
             <TableHead>
               <TableRow>
@@ -334,52 +466,94 @@ const groupedRows = React.useMemo(() => {
                 ))}
               </TableRow>
             </TableHead>
-<TableBody>
-  {groupedRows.length === 0 ? (
-    <TableRow>
-      <TableCell colSpan={headings.length} align="center">डेटा उपलब्ध नाही</TableCell>
-    </TableRow>
-  ) : (
-    groupedRows.map((row, idx) => (
-      <React.Fragment key={idx}>
-        <TableRow>
-          {/* जमा (Jama) section - uses sodDate */}
-          <TableCell align="center">{row.jama ? formatMarathiDate(row.jama.sodDate) : ''}</TableCell>
-          <TableCell align="center">{row.jama ? `श्री ${row.jama.name} बाकी जमा` : ''}</TableCell>
-          <TableCell align="center">{row.jama ? row.jama.accountNo : ''}</TableCell>
-          <TableCell align="center">{row.jama ? formatMarathiCurrency(row.jama.goldRate) : ''}</TableCell>
-          <TableCell align="center"></TableCell>
-          <TableCell align="center"></TableCell>
-          {/* नावेचा (Sod) section - uses date */}
-          <TableCell align="center">{row.sod ? formatMarathiDate(row.sod.date) : ''}</TableCell>
-          <TableCell align="center">{row.sod ? `श्री ${row.sod.name} बाकी नावे` : ''}</TableCell>
-          <TableCell align="center">{row.sod ? row.sod.accountNo : ''}</TableCell>
-          <TableCell align="center">{row.sod ? formatMarathiCurrency(row.sod.goldRate) : ''}</TableCell>
-          <TableCell align="center"></TableCell>
-          <TableCell align="center"></TableCell>
-        </TableRow>
-        {/* व्याज row for जमा तपशील */}
-        {row.jama && row.jama.vayaj ? (
-          <TableRow>
-            <TableCell align="center">{row.jama ? formatMarathiDate(row.jama.sodDate) : ''}</TableCell>
-            <TableCell align="center">श्री व्याज खाते जमा</TableCell>
-            <TableCell align="center"></TableCell>
-            <TableCell align="center"></TableCell>
-            <TableCell align="center">{formatMarathiCurrency(row.jama.vayaj)}</TableCell>
-            <TableCell align="center"></TableCell>
-            {/* Empty cells for नावेचा तपशील side */}
-            <TableCell align="center"></TableCell>
-            <TableCell align="center"></TableCell>
-            <TableCell align="center"></TableCell>
-            <TableCell align="center"></TableCell>
-            <TableCell align="center"></TableCell>
-            <TableCell align="center"></TableCell>
-          </TableRow>
-        ) : null}
-      </React.Fragment>
-    ))
-  )}
-</TableBody>
+            <TableBody>
+              {groupedRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={headings.length} align="center">डेटा उपलब्ध नाही</TableCell>
+                </TableRow>
+              ) : (
+                groupedRows.map((row, idx) => (
+                  <React.Fragment key={idx}>
+                    <TableRow>
+                      {/* जमा (Jama) section - uses sodDate */}
+                      <TableCell align="center">{row.jama ? formatMarathiDate(row.jama.sodDate) : ''}</TableCell>
+                      <TableCell align="center">
+                        {row.jama ? (
+                          row.jama.name === 'पुरांत' ? (
+                            'श्री पुरंत बाकी जमा'
+                          ) : (
+                            <>
+                              श्री {row.jama.name} यांचे {numberToMarathiWords(Number(row.jama.goldRate))} रुपये रक्कम व्याज जमा
+                              {row.jama.item ? ` त्या पोटी टेवलीली ${row.jama.item}` : ''}
+                              {row.jama.sodDate ? ` सोडवली` : ''}
+                            </>
+                          )
+                        ) : ''}
+                      </TableCell>
+                      <TableCell align="center">{row.jama ? row.jama.accountNo : ''}</TableCell>
+                      <TableCell align="center" className="amount-cell">{row.jama ? formatMarathiCurrency(row.jama.goldRate) : ''}</TableCell>
+                      <TableCell align="center"></TableCell>
+                      {/* नावेचा (Sod) section - uses date */}
+                      <TableCell align="center">{row.sod ? formatMarathiDate(row.sod.date) : ''}</TableCell>
+                      <TableCell align="center">
+                        {row.sod ? (
+                          row.sod.name === 'पुरांत' ? (
+                            'श्री पुरंत बाकी नावे'
+                          ) : (
+                            <>
+                              श्री {row.sod.name} यांचे नाव {numberToMarathiWords(Number(row.sod.goldRate))}
+                              {row.sod.item ? ` मात्र ${row.sod.item} ठेवले.` : ''}
+                            </>
+                          )
+                        ) : ''}
+                      </TableCell>
+                      <TableCell align="center">{row.sod ? row.sod.accountNo : ''}</TableCell>
+                      <TableCell align="center" className="amount-cell">{row.sod ? formatMarathiCurrency(row.sod.goldRate) : ''}</TableCell>
+                    </TableRow>
+                    {/* व्याज row for जमा तपशील */}
+                    {row.jama && row.jama.vayaj ? (
+                      <TableRow>
+                        <TableCell align="center">{row.jama ? formatMarathiDate(row.jama.sodDate) : ''}</TableCell>
+                        <TableCell align="center">श्री व्याज खाते जमा</TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.jama.vayaj)}</TableCell>
+                        {/* Empty cells for नावेचा तपशील side */}
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                      </TableRow>
+                    ) : null}
+                    {/* Add day separator if not the last row */}
+                    {idx < groupedRows.length - 1 && (
+                      <>
+                        <TableRow sx={{ 
+                          backgroundColor: '#f8f9fa',
+                          '& td': {
+                            fontWeight: 'bold',
+                            borderBottom: '2px solid #000'
+                          }
+                        }}>
+                          <TableCell align="center">{formatMarathiDate(row.date)}</TableCell>
+                          <TableCell align="center">श्री पुरंत बाकी जमा</TableCell>
+                          <TableCell align="center"></TableCell>
+                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(settings.balanceAmount || 0)}</TableCell>
+                          <TableCell align="center"></TableCell>
+                          <TableCell align="center">{formatMarathiDate(row.date)}</TableCell>
+                          <TableCell align="center">श्री पुरंत बाकी नावे</TableCell>
+                          <TableCell align="center"></TableCell>
+                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(settings.balanceAmount || 0)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell colSpan={9} sx={{ borderBottom: '2px solid #000', padding: 0 }}></TableCell>
+                        </TableRow>
+                      </>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </TableBody>
           </Table>
         </TableContainer>
       )}

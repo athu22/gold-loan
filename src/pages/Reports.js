@@ -111,25 +111,25 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
 {toMarathiDate(customer.date)}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.goldRate || '-'}
+      {customer.goldRate || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.returnInterest || '-'}
+      {customer.returnInterest || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.returnTotal || '-'}
+      {customer.returnTotal || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.duringPrincipal || '-'}
+      {customer.duringPrincipal || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.duringInterest || '-'}
+      {customer.duringInterest || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.due || '-'}
+      {customer.due || '०'}
     </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.months || '-'}
+    {customer.months || '०'}
   </TableCell>
   {/* Remove this cell:
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
@@ -137,13 +137,13 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
   </TableCell>
   */}
   <TableCell colSpan={2} align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.item || '-'}
+    {customer.item || '०'}
   </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.kitPage || '-'}
+    {customer.kitPage || '०'}
   </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.paNumber || '-'}
+    {customer.paNumber || '०'}
   </TableCell>
   </TableRow>
  {customer.sodDate && (
@@ -151,9 +151,9 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
 {toMarathiDate(customer.sodDate)}
       </TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.goldRate || '-'}</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.vayaj || '-'}</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.goldRate || '०'}</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.vayaj || '०'}</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
         {(() => {
           // Convert Devanagari to English digits
@@ -169,16 +169,16 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
             const sum = principal + interest;
             return toMarathiDigits(sum);
           }
-          return '-';
+          return '०';
         })()}
       </TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-            <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+            <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
     </TableRow>
   )}
   </TableBody>
@@ -574,25 +574,25 @@ return (
 {toMarathiDate(customer.date)}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.goldRate || '-'}
+      {customer.goldRate || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.returnInterest || '-'}
+      {customer.returnInterest || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.returnTotal || '-'}
+      {customer.returnTotal || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.duringPrincipal || '-'}
+      {customer.duringPrincipal || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.duringInterest || '-'}
+    {customer.goldRate || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.due || '-'}
+      {customer.due || '०'}
     </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.months || '-'}
+    {customer.months || '०'}
   </TableCell>
   {/* Remove this cell:
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
@@ -600,13 +600,13 @@ return (
   </TableCell>
   */}
   <TableCell colSpan={2} align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.item || '-'}
+    {customer.item || '०'}
   </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.kitPage || '-'}
+    {customer.kitPage || '०'}
   </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.paNumber || '-'}
+    {customer.pavtiNo|| '०'}
   </TableCell>
   </TableRow>
  {customer.sodDate && (
@@ -614,7 +614,7 @@ return (
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
 {toMarathiDate(customer.sodDate)}
       </TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.goldRate || '-'}</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{customer.vayaj || '-'}</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
@@ -635,13 +635,13 @@ return (
           return '-';
         })()}
       </TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
-            <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>-</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+            <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
     </TableRow>
   )}
   </TableBody>
