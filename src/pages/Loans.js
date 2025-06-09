@@ -355,35 +355,8 @@ const groupedRows = React.useMemo(() => {
           sod: { date: date, name: 'पुरांत', accountNo: '', goldRate: settings.balanceAmount || 0 }
         };
       }
-
-      // Find all jama entries for this date
-      const jamaEntries = filteredTableData.filter(row => row.sodDate === date);
+      const jama = filteredTableData.find(row => row.sodDate === date) || null;
       const sod = filteredTableData.find(row => row.date === date) || null;
-
-      // Calculate total amount including interest for पुरांत entries
-      let totalAmount = 0;
-      let hasPurantEntry = false;
-      let interestAmount = 0;
-
-      jamaEntries.forEach(entry => {
-        if (entry.name === 'पुरांत') {
-          hasPurantEntry = true;
-          totalAmount += Number(entry.goldRate || 0);
-          if (entry.vayaj) {
-            interestAmount += Number(entry.vayaj);
-          }
-        }
-      });
-
-      // If there are पुरांत entries, combine them into one entry with total amount
-      const jama = hasPurantEntry ? {
-        sodDate: date,
-        name: 'पुरांत',
-        accountNo: '',
-        goldRate: totalAmount + interestAmount,
-        vayaj: interestAmount
-      } : jamaEntries[0] || null;
-
       return { date, jama, sod };
     });
 }, [filteredTableData, selectedMonth, settings.balanceAmount]);
