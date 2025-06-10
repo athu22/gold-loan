@@ -101,7 +101,7 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मुदल</TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>व्याज</TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>येणे</TableCell>
-    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>महिने</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>दिवस</TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मी व्याज</TableCell>
   </TableRow>
 </TableHead>
@@ -175,7 +175,7 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{toMarathiNumber(customer.divas || '०')}</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
             <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
@@ -564,7 +564,7 @@ return (
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मुदल</TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>व्याज</TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>येणे</TableCell>
-    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>महिने</TableCell>
+    <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>दिवस</TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fafafa' }}>मी व्याज</TableCell>
   </TableRow>
 </TableHead>
@@ -638,7 +638,7 @@ return (
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
-      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
+      <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>{toMarathiNumber(customer.divas || '०')}</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
       <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>
             <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>०</TableCell>

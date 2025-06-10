@@ -45,7 +45,7 @@ import {
   Badge as BadgeIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
-import { addCustomer,  updateCustomer, deleteCustomer,  getAllShops, saveTableData, getTableData } from '../firebase/services';
+import { addCustomer,  updateCustomer, deleteCustomer,  getAllShops, saveTableData, getTableData, getShopSettings } from '../firebase/services';
 import { translations, toMarathiName } from '../utils/translations';
 import MarathiTransliterator from '../components/MarathiTransliterator';
 
@@ -67,22 +67,26 @@ function Customers() {
     message: '',
     severity: 'success',
   });
-  function toMarathiNumber(num) {
-  return String(num).replace(/\d/g, d => '०१२३४५६७८९'[d]);
-}
+  const [settings, setSettings] = useState({
+    interestRate: 2.5, // Default interest rate
+  });
 
-function toMarathiDate(dateStr) {
-  if (!dateStr) return '';
-  // Expecting dateStr in 'yyyy-mm-dd'
-  const [yyyy, mm, dd] = dateStr.split('-');
-  const formatted = [dd, mm, yyyy].join('/');
-  return formatted.replace(/\d/g, d => '०१२३४५६७८९'[d]);
-}
+  function toMarathiNumber(num) {
+    return String(num).replace(/\d/g, d => '०१२३४५६७८९'[d]);
+  }
+
+  function toMarathiDate(dateStr) {
+    if (!dateStr) return '';
+    // Expecting dateStr in 'yyyy-mm-dd'
+    const [yyyy, mm, dd] = dateStr.split('-');
+    const formatted = [dd, mm, yyyy].join('/');
+    return formatted.replace(/\d/g, d => '०१२३४५६७८९'[d]);
+  }
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-});
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Table headings as per the image
   const headings = [
@@ -207,13 +211,13 @@ function toMarathiDate(dateStr) {
     fetchShops();
   }, []);
 
-useEffect(() => {
-  if (selectedShop) {
-    fetchTableData(selectedShop, selectedMonth);
-  } else {
-    setRows([{ ...emptyRow }]);
-  }
-}, [selectedShop, selectedMonth]);
+  useEffect(() => {
+    if (selectedShop) {
+      fetchTableData(selectedShop, selectedMonth);
+    } else {
+      setRows([{ ...emptyRow }]);
+    }
+  }, [selectedShop, selectedMonth]);
 
   const fetchShops = async () => {
     setLoading(true);
@@ -233,22 +237,22 @@ useEffect(() => {
     }
   };
 
-const fetchTableData = async (shopName, month = selectedMonth) => {
-  setLoading(true);
-  try {
-    const response = await getTableData(shopName, month); // Pass month
-    if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-      setRows(response.data);
-    } else {
+  const fetchTableData = async (shopName, month = selectedMonth) => {
+    setLoading(true);
+    try {
+      const response = await getTableData(shopName, month); // Pass month
+      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+        setRows(response.data);
+      } else {
+        setRows([{ ...emptyRow }]);
+      }
+    } catch (error) {
+      setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
       setRows([{ ...emptyRow }]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
-    setRows([{ ...emptyRow }]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleShopChange = async (event) => {
     const shopName = event.target.value;
@@ -417,7 +421,26 @@ const fetchTableData = async (shopName, month = selectedMonth) => {
     printWindow.close();
   };
 
-  // Handle cell change
+  const calculateInterest = (amount, days) => {
+    // Convert to numbers, removing any non-numeric characters
+    const principal = parseFloat(String(amount).replace(/[^\d.]/g, ''));
+    const daysNum = parseInt(String(days).replace(/[^\d]/g, ''));
+    const interestRate = parseFloat(settings.interestRate) || 2.5;
+
+    console.log('Calculation values:', { principal, daysNum, interestRate }); // Debug log
+
+    if (isNaN(principal) || isNaN(daysNum) || isNaN(interestRate)) {
+      console.log('Invalid values detected'); // Debug log
+      return '०';
+    }
+
+    // Calculate interest: (Principal * Rate * Days) / (100 * 365)
+    const interest = (principal * interestRate * daysNum) / (100 * 365);
+    console.log('Calculated interest:', interest); // Debug log
+
+    return interest.toFixed(2);
+  };
+
   const handleCellChange = (index, field, value) => {
     const updatedRows = [...rows];
     updatedRows[index][field] = value;
@@ -437,7 +460,28 @@ const fetchTableData = async (shopName, month = selectedMonth) => {
         
         // Update the days field
         updatedRows[index].divas = diffDays.toString();
+        
+        // Recalculate interest when days change
+        if (updatedRows[index].goldRate) {
+          const interest = calculateInterest(updatedRows[index].goldRate, diffDays);
+          console.log('Interest after date change:', interest); // Debug log
+          updatedRows[index].vayaj = interest;
+        }
       }
+    }
+
+    // Calculate interest when amount changes
+    if (field === 'goldRate' && updatedRows[index].divas) {
+      const interest = calculateInterest(value, updatedRows[index].divas);
+      console.log('Interest after amount change:', interest); // Debug log
+      updatedRows[index].vayaj = interest;
+    }
+
+    // Calculate interest when days change
+    if (field === 'divas' && updatedRows[index].goldRate) {
+      const interest = calculateInterest(updatedRows[index].goldRate, value);
+      console.log('Interest after days change:', interest); // Debug log
+      updatedRows[index].vayaj = interest;
     }
 
     // When date is entered, ensure it's treated as a jama entry
@@ -453,6 +497,24 @@ const fetchTableData = async (shopName, month = selectedMonth) => {
     setRows(updatedRows);
   };
 
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (selectedShop) {
+        try {
+          const response = await getShopSettings(selectedShop);
+          if (response.success && response.data) {
+            console.log('Shop settings loaded:', response.data); // Debug log
+            setSettings(response.data);
+          }
+        } catch (error) {
+          console.error('Error fetching settings:', error);
+        }
+      }
+    };
+
+    fetchSettings();
+  }, [selectedShop]);
+
   // Add new row
   const handleAddRow = () => {
     setRows([...rows, { ...emptyRow }]);
@@ -465,31 +527,31 @@ const fetchTableData = async (shopName, month = selectedMonth) => {
   };
 
   // Save all rows to backend
-const handleSave = async () => {
-  if (!selectedShop) {
-    setSnackbar({ open: true, message: 'कृपया दुकान निवडा', severity: 'error' });
-    return;
-  }
-  setLoading(true);
-  try {
-    // Filter out undefined/null/empty rows
-    const validRows = rows.filter(
-      row => row && (row.date || row.sodDate) // Only rows with at least one date
-    );
-
-    // Save all rows for the selected month
-    const response = await saveTableData(selectedShop, selectedMonth, validRows);
-    if (!response.success) {
-      throw new Error(response.error || 'सेव्ह करताना त्रुटी आली');
+  const handleSave = async () => {
+    if (!selectedShop) {
+      setSnackbar({ open: true, message: 'कृपया दुकान निवडा', severity: 'error' });
+      return;
     }
+    setLoading(true);
+    try {
+      // Filter out undefined/null/empty rows
+      const validRows = rows.filter(
+        row => row && (row.date || row.sodDate) // Only rows with at least one date
+      );
 
-    setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
-  } catch (error) {
-    setSnackbar({ open: true, message: error.message, severity: 'error' });
-  } finally {
-    setLoading(false);
-  }
-};
+      // Save all rows for the selected month
+      const response = await saveTableData(selectedShop, selectedMonth, validRows);
+      if (!response.success) {
+        throw new Error(response.error || 'सेव्ह करताना त्रुटी आली');
+      }
+
+      setSnackbar({ open: true, message: 'डेटा सेव्ह झाला!', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -505,16 +567,16 @@ const handleSave = async () => {
       }}>
 
         <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-<TextField
-  label="महिना निवडा"
-  type="month"
-  value={selectedMonth}
-  onChange={e => setSelectedMonth(e.target.value)}
-  size="small"
-  sx={{ width: 200 }}
-  InputLabelProps={{ shrink: true }}
-/>
-</Box>
+          <TextField
+            label="महिना निवडा"
+            type="month"
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(e.target.value)}
+            size="small"
+            sx={{ width: 200 }}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Box>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
             {translations.customers.title}
@@ -572,33 +634,33 @@ const handleSave = async () => {
             ),
           }}
         />
-<Tooltip title="प्रिंट करा">
-  <span>
-    <IconButton 
-      onClick={handlePrint}
-      disabled={!selectedShop || rows.length === 0}
-      sx={{ color: theme.palette.primary.main, '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) } }}
-    >
-      <PrintIcon />
-    </IconButton>
-  </span>
-</Tooltip>
-<Tooltip title="रिफ्रेश करा">
-  <span>
-    <IconButton 
-      onClick={() => fetchTableData(selectedShop)}
-      disabled={!selectedShop}
-      sx={{ 
-        color: theme.palette.info.main,
-        '&:hover': {
-          backgroundColor: alpha(theme.palette.info.main, 0.1),
-        }
-      }}
-    >
-      <RefreshIcon />
-    </IconButton>
-  </span>
-</Tooltip>
+        <Tooltip title="प्रिंट करा">
+          <span>
+            <IconButton 
+              onClick={handlePrint}
+              disabled={!selectedShop || rows.length === 0}
+              sx={{ color: theme.palette.primary.main, '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) } }}
+            >
+              <PrintIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="रिफ्रेश करा">
+          <span>
+            <IconButton 
+              onClick={() => fetchTableData(selectedShop)}
+              disabled={!selectedShop}
+              sx={{ 
+                color: theme.palette.info.main,
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                }
+              }}
+            >
+              <RefreshIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Box>
 
       {/* Customers Grid */}
@@ -626,119 +688,118 @@ const handleSave = async () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-  {rows.map((row, idx) => {
-    if (!row) return null; // Skip undefined/null rows
-    return (
-      <TableRow key={idx}>
-        <TableCell align="center">{toMarathiNumber(idx + 1)}</TableCell>
-        <TableCell align="center">
-          <TextField
-            value={row.accountNo || ''}
-            onChange={e => handleCellChange(idx, 'accountNo', e.target.value)}
-            variant="standard"
-          />
-        </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.pavtiNo}
-                          onChange={e => handleCellChange(idx, 'pavtiNo', e.target.value)}
-                          variant="standard"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          type="date"
-                          value={row.date}
-                          onChange={e => handleCellChange(idx, 'date', e.target.value)}
-                          variant="standard"
-                        />
+                  {rows.map((row, idx) => {
+                    if (!row) return null; // Skip undefined/null rows
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell align="center">{toMarathiNumber(idx + 1)}</TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.accountNo || ''}
+                            onChange={e => handleCellChange(idx, 'accountNo', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.pavtiNo}
+                            onChange={e => handleCellChange(idx, 'pavtiNo', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            type="date"
+                            value={row.date}
+                            onChange={e => handleCellChange(idx, 'date', e.target.value)}
+                            variant="standard"
+                          />
                           <div style={{ fontSize: '0.85em', color: '#888' }}>
-    {toMarathiDate(row.date)}
-  </div>
-                      </TableCell>
-                      <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
-                        <TextField
-                          value={row.name}
-                          onChange={e => handleCellChange(idx, 'name', e.target.value)}
-                          variant="standard"
-                          fullWidth
-                          InputProps={{
-                            startAdornment: <InputAdornment position="start">श्री</InputAdornment>,
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
-                        <TextField
-                          value={row.item}
-                          onChange={e => handleCellChange(idx, 'item', e.target.value)}
-                          variant="standard"
-                          fullWidth
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.goldRate}
-                          onChange={e => handleCellChange(idx, 'goldRate', e.target.value)}
-                          variant="standard"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          type="date"
-                          value={row.sodDate}
-                          onChange={e => handleCellChange(idx, 'sodDate', e.target.value)}
-                          variant="standard"
-                        />
-                                                  <div style={{ fontSize: '0.85em', color: '#888' }}>
-    {toMarathiDate(row.sodDate)}
-  </div>
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.divas}
-                          onChange={e => handleCellChange(idx, 'divas', e.target.value)}
-                          variant="standard"
-                        />
-
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.moparu}
-                          onChange={e => handleCellChange(idx, 'moparu', e.target.value)}
-                          variant="standard"
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.vayaj}
-                          onChange={e => handleCellChange(idx, 'vayaj', e.target.value)}
-                          variant="standard"
-                        />
-                      </TableCell>
-                      <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
-                        <TextField
-                          value={row.address}
-                          onChange={e => handleCellChange(idx, 'address', e.target.value)}
-                          variant="standard"
-                          fullWidth
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <TextField
-                          value={row.signature}
-                          onChange={e => handleCellChange(idx, 'signature', e.target.value)}
-                          variant="standard"
-                        />
-                      </TableCell>
-        <TableCell align="center">
-          <IconButton color="error" onClick={() => handleDeleteRow(idx)}>
-            <DeleteIcon />
-          </IconButton>
-        </TableCell>
-      </TableRow>
-    );
-  })}
-</TableBody>
+                            {toMarathiDate(row.date)}
+                          </div>
+                        </TableCell>
+                        <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
+                          <TextField
+                            value={row.name}
+                            onChange={e => handleCellChange(idx, 'name', e.target.value)}
+                            variant="standard"
+                            fullWidth
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start">श्री</InputAdornment>,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
+                          <TextField
+                            value={row.item}
+                            onChange={e => handleCellChange(idx, 'item', e.target.value)}
+                            variant="standard"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.goldRate}
+                            onChange={e => handleCellChange(idx, 'goldRate', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            type="date"
+                            value={row.sodDate}
+                            onChange={e => handleCellChange(idx, 'sodDate', e.target.value)}
+                            variant="standard"
+                          />
+                          <div style={{ fontSize: '0.85em', color: '#888' }}>
+                            {toMarathiDate(row.sodDate)}
+                          </div>
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.divas}
+                            onChange={e => handleCellChange(idx, 'divas', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.moparu}
+                            onChange={e => handleCellChange(idx, 'moparu', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.vayaj}
+                            onChange={e => handleCellChange(idx, 'vayaj', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
+                          <TextField
+                            value={row.address}
+                            onChange={e => handleCellChange(idx, 'address', e.target.value)}
+                            variant="standard"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <TextField
+                            value={row.signature}
+                            onChange={e => handleCellChange(idx, 'signature', e.target.value)}
+                            variant="standard"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <IconButton color="error" onClick={() => handleDeleteRow(idx)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
               </Table>
             </TableContainer>
           )}
