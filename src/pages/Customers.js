@@ -427,18 +427,15 @@ function Customers() {
     const daysNum = parseInt(String(days).replace(/[^\d]/g, ''));
     const interestRate = parseFloat(settings.interestRate) || 2.5;
 
-    console.log('Calculation values:', { principal, daysNum, interestRate }); // Debug log
-
     if (isNaN(principal) || isNaN(daysNum) || isNaN(interestRate)) {
-      console.log('Invalid values detected'); // Debug log
       return '०';
     }
 
     // Calculate interest: (Principal * Rate * Days) / (100 * 365)
     const interest = (principal * interestRate * daysNum) / (100 * 365);
-    console.log('Calculated interest:', interest); // Debug log
-
-    return interest.toFixed(2);
+    
+    // Format the interest to 2 decimal places and convert to Marathi numerals
+    return toMarathiNumber(interest.toFixed(2));
   };
 
   const handleCellChange = (index, field, value) => {
@@ -464,23 +461,22 @@ function Customers() {
         // Recalculate interest when days change
         if (updatedRows[index].goldRate) {
           const interest = calculateInterest(updatedRows[index].goldRate, diffDays);
-          console.log('Interest after date change:', interest); // Debug log
           updatedRows[index].vayaj = interest;
         }
       }
     }
 
     // Calculate interest when amount changes
-    if (field === 'goldRate' && updatedRows[index].divas) {
-      const interest = calculateInterest(value, updatedRows[index].divas);
-      console.log('Interest after amount change:', interest); // Debug log
+    if (field === 'goldRate') {
+      const days = updatedRows[index].divas || '0';
+      const interest = calculateInterest(value, days);
       updatedRows[index].vayaj = interest;
     }
 
     // Calculate interest when days change
-    if (field === 'divas' && updatedRows[index].goldRate) {
-      const interest = calculateInterest(updatedRows[index].goldRate, value);
-      console.log('Interest after days change:', interest); // Debug log
+    if (field === 'divas') {
+      const amount = updatedRows[index].goldRate || '0';
+      const interest = calculateInterest(amount, value);
       updatedRows[index].vayaj = interest;
     }
 
@@ -503,7 +499,6 @@ function Customers() {
         try {
           const response = await getShopSettings(selectedShop);
           if (response.success && response.data) {
-            console.log('Shop settings loaded:', response.data); // Debug log
             setSettings(response.data);
           }
         } catch (error) {

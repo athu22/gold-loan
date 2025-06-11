@@ -91,7 +91,7 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
     <TableCell colSpan={3} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>परत केलेली चिठ्ठी जमा केलेली रक्कम</TableCell>
     <TableCell colSpan={2} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>दरम्यान व्यवहारांतून येणे असलेली रक्कम</TableCell>
     <TableCell colSpan={3} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>व्याजाचा हिशोबाचा तपशील</TableCell>
-    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>कीट पान</TableCell>
+    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>किर्द पान</TableCell>
     <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>पा नंबर</TableCell>
   </TableRow>
   <TableRow>
@@ -554,7 +554,7 @@ return (
     <TableCell colSpan={3} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>परत केलेली चिठ्ठी जमा केलेली रक्कम</TableCell>
     <TableCell colSpan={2} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>दरम्यान व्यवहारांतून येणे असलेली रक्कम</TableCell>
     <TableCell colSpan={3} align="center" sx={{ border: '1px solid #000', fontWeight: 'bold', background: '#f5f5f5' }}>व्याजाचा हिशोबाचा तपशील</TableCell>
-    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>कीट पान</TableCell>
+    <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>किर्द पान</TableCell>
     <TableCell rowSpan={2} align="center" sx={{ border: '1px solid #000', minWidth: 60, fontWeight: 'bold', background: '#f5f5f5' }}>पा नंबर</TableCell>
   </TableRow>
   <TableRow>
