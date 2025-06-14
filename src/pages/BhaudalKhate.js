@@ -65,6 +65,13 @@ function toMarathiNumber(str) {
   return String(str).replace(/\d/g, d => marathiDigits[d]);
 }
 
+// Add this new function to convert Marathi numerals to regular numbers
+function marathiToNumber(marathiStr) {
+  if (!marathiStr) return 0;
+  const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+  return parseInt(marathiStr.split('').map(d => marathiDigits.indexOf(d)).join(''));
+}
+
 React.useEffect(() => {
   if (selectedShop && selectedMonth) {
     setLoading(true);
@@ -84,29 +91,90 @@ React.useEffect(() => {
   const handlePrint = () => {
     const printContents = printRef.current.innerHTML;
     const win = window.open('', '', 'height=900,width=1200');
-   win.document.write(`
-  <html>
-    <head>
-      <title>भौदल खाते</title>
-      <style>
-        body { font-family: 'Noto Sans Devanagari', 'Devanagari', Arial, sans-serif; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 14px; }
-        th { background: #f0f0f0; }
-        h2, h4 { margin: 0; }
-        .header { text-align: center; margin-bottom: 2px; }
-        .header .shop-name {
-          font-size: 30px !important;
-          font-weight: bold !important;
-          margin-bottom: 2px;
-        }
-      </style>
-    </head>
-    <body>
-      ${printContents}
-    </body>
-  </html>
-`);
+    win.document.write(`
+      <html>
+        <head>
+          <title>भौदल खाते</title>
+          <style>
+            @page {
+              size: landscape;
+              margin: 15mm;
+            }
+            body { 
+              font-family: 'Noto Sans Devanagari', 'Devanagari', Arial, sans-serif;
+              padding: 20px;
+              background-color: white;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #000;
+              padding-bottom: 10px;
+            }
+            .shop-name {
+              font-size: 32px !important;
+              font-weight: bold !important;
+              margin-bottom: 5px;
+              text-transform: uppercase;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: bold;
+              margin: 10px 0;
+            }
+            .subtitle {
+              font-size: 16px;
+              margin: 5px 0;
+            }
+            table { 
+              border-collapse: collapse; 
+              width: 100%;
+              margin-top: 20px;
+            }
+            th, td { 
+              border: 1px solid #000; 
+              padding: 8px; 
+              text-align: center; 
+              font-size: 14px;
+            }
+            th { 
+              background: #f0f0f0;
+              font-weight: bold;
+            }
+            .total-row td {
+              border-top: 2px solid #000;
+              font-weight: bold;
+              background-color: #f5f5f5;
+            }
+            .footer {
+              margin-top: 20px;
+              text-align: center;
+              font-size: 12px;
+              border-top: 1px solid #000;
+              padding-top: 10px;
+            }
+            @media print {
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="shop-name">${shopDisplayName}</div>
+            <div class="title">भौदल खाते</div>
+            <div class="subtitle">नमुना नंबर १३ (नियम १९ पहा)</div>
+            <div class="subtitle">सन: ${toMarathiNumber(period)}</div>
+          </div>
+          ${printContents}
+        </body>
+      </html>
+    `);
     win.document.close();
     win.focus();
     win.print();
@@ -114,18 +182,34 @@ React.useEffect(() => {
   };
 
   return (
-  <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }}>
       <Button
         variant="contained"
         color="primary"
         startIcon={<PrintIcon />}
         onClick={handlePrint}
-        sx={{ mb: 2 }}
+        sx={{ 
+          mb: 2,
+          backgroundColor: '#1976d2',
+          '&:hover': {
+            backgroundColor: '#1565c0'
+          }
+        }}
       >
-        Print
+        प्रिंट
       </Button>
       <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-        <select value={selectedShop} onChange={e => setSelectedShop(e.target.value)}>
+        <select 
+          value={selectedShop} 
+          onChange={e => setSelectedShop(e.target.value)}
+          style={{
+            padding: '8px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            fontSize: '14px',
+            minWidth: '200px'
+          }}
+        >
           <option value="">दुकान निवडा</option>
           {shops.map(shop => (
             <option key={shop.id} value={shop.name}>{shop.name}</option>
@@ -135,32 +219,30 @@ React.useEffect(() => {
           type="month"
           value={selectedMonth}
           onChange={e => setSelectedMonth(e.target.value)}
+          style={{
+            padding: '8px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            fontSize: '14px'
+          }}
         />
       </Box>
       <div ref={printRef}>
-<div className="header">
-  <Typography
-    variant="h2"
-    align="center"
-    gutterBottom
-    className="shop-name"
-    sx={{ fontWeight: 'bold', fontSize: { xs: 20, sm: 48, md: 20 } }}
-  >
-    {shopDisplayName}
-  </Typography>
-  <Typography variant="h6" align="center" gutterBottom
-  sx={{ fontWeight: 'bold', fontSize: { xs: 20, sm: 48, md: 20 } }}>
-    भौदल खाते
-  </Typography>
-  {/* Add this line for नमुना नंबर १३ */}
-  <Typography align="center" sx={{ mb: 0.5, fontWeight: 500 }}>
-    नमुना नंबर १३ (नियम १९ पहा)
-  </Typography>
-  <Typography align="center" sx={{ mb: 1 }}>
-    सन: {toMarathiNumber(period)}
-  </Typography>
-</div>
-        <TableContainer component={Paper} elevation={0}>
+        <TableContainer 
+          component={Paper} 
+          elevation={0}
+          sx={{
+            '& .MuiTableCell-root': {
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              padding: '12px 8px',
+            },
+            '& .MuiTableHead-root .MuiTableCell-root': {
+              backgroundColor: '#f5f5f5',
+              fontWeight: 'bold',
+              fontSize: '1rem',
+            }
+          }}
+        >
           <Table>
             <TableHead>
               <TableRow>
@@ -172,74 +254,115 @@ React.useEffect(() => {
                 <TableCell align="center">शिल्लक</TableCell>
               </TableRow>
             </TableHead>
-<TableBody>
-  {(() => {
-    let runningBalance = Number(initialAmount);
-    let totalDeposit = 0;
-    let totalWithdrawal = 0;
+            <TableBody>
+              {(() => {
+                let runningBalance = Number(initialAmount);
+                let totalDeposit = 0;
+                let totalWithdrawal = 0;
 
-    // Flatten rows: if both sodDate and date exist, create two rows
-    const flatRows = [];
-    rows.forEach(row => {
-      if (row.sodDate) {
-        flatRows.push({
-          type: 'deposit',
-          date: row.sodDate,
-          goldRate: row.goldRate,
-        });
-      }
-      if (row.date) {
-        flatRows.push({
-          type: 'withdrawal',
-          date: row.date,
-          goldRate: row.goldRate,
-        });
-      }
-    });
+                console.log('Initial Balance:', runningBalance);
 
-    // Sort by date (ascending)
-    flatRows.sort((a, b) => {
-      // Dates are in YYYY-MM-DD format
-      if (!a.date) return 1;
-      if (!b.date) return -1;
-      return a.date.localeCompare(b.date);
-    });
+                // Flatten rows: if both sodDate and date exist, create two rows
+                const flatRows = [];
+                rows.forEach(row => {
+                  if (row.sodDate) {
+                    flatRows.push({
+                      type: 'deposit',
+                      date: row.sodDate,
+                      goldRate: row.goldRate,
+                    });
+                  }
+                  if (row.date) {
+                    flatRows.push({
+                      type: 'withdrawal',
+                      date: row.date,
+                      goldRate: row.goldRate,
+                    });
+                  }
+                });
 
-return flatRows.map((row, idx) => {
-  let displayAmount = Number(row.goldRate) || 0;
-  let deposit = '';
-  let depositTotal = '';
-  let withdrawal = '';
-  let withdrawalTotal = '';
+                // Sort by date (ascending)
+                flatRows.sort((a, b) => {
+                  if (!a.date) return 1;
+                  if (!b.date) return -1;
+                  return a.date.localeCompare(b.date);
+                });
 
-  if (row.type === 'deposit') {
-    deposit = row.goldRate || '०';
-    totalDeposit += displayAmount;
-    depositTotal = toMarathiNumber(totalDeposit);
-    runningBalance += displayAmount;
-    withdrawal = '०';
-    withdrawalTotal = toMarathiNumber(totalWithdrawal);
-  } else if (row.type === 'withdrawal') {
-    withdrawal = row.goldRate || '०';
-    totalWithdrawal += displayAmount;
-    withdrawalTotal = toMarathiNumber(totalWithdrawal);
-    deposit = '०';
-    depositTotal = toMarathiNumber(totalDeposit);
-  }
+                console.log('All Transactions:', flatRows);
 
-  return (
-    <TableRow key={idx}>
-      <TableCell align="center">{toMarathiDate(row.date)}</TableCell>
-      <TableCell align="center">{deposit}</TableCell>
-      <TableCell align="center">{depositTotal}</TableCell>
-      <TableCell align="center">{withdrawal}</TableCell>
-      <TableCell align="center">{withdrawalTotal}</TableCell>
-      <TableCell align="center">{toMarathiNumber(runningBalance)}</TableCell>
-    </TableRow>
-  );
-});
-  })()}
-</TableBody>
+                const tableRows = flatRows.map((row, idx) => {
+                  // Convert Marathi numerals to regular numbers
+                  let displayAmount = marathiToNumber(row.goldRate) || 0;
+                  let deposit = '';
+                  let withdrawal = '';
+
+                  console.log(`Processing row ${idx}:`, {
+                    type: row.type,
+                    date: row.date,
+                    amount: displayAmount,
+                    currentBalance: runningBalance,
+                    rawGoldRate: row.goldRate
+                  });
+
+                  if (row.type === 'deposit') {
+                    deposit = row.goldRate || '०';
+                    totalDeposit += displayAmount;
+                    // Subtract from running balance for deposits
+                    runningBalance -= displayAmount;
+                    withdrawal = '०';
+                    console.log('After Deposit:', {
+                      amount: displayAmount,
+                      newBalance: runningBalance,
+                      totalDeposit,
+                      rawAmount: row.goldRate
+                    });
+                  } else if (row.type === 'withdrawal') {
+                    withdrawal = row.goldRate || '०';
+                    totalWithdrawal += displayAmount;
+                    // Add to running balance for withdrawals
+                    runningBalance += displayAmount;
+                    deposit = '०';
+                    console.log('After Withdrawal:', {
+                      amount: displayAmount,
+                      newBalance: runningBalance,
+                      totalWithdrawal,
+                      rawAmount: row.goldRate
+                    });
+                  }
+
+                  return (
+                    <TableRow key={idx}>
+                      <TableCell align="center">{toMarathiDate(row.date)}</TableCell>
+                      <TableCell align="center">{deposit}</TableCell>
+                      <TableCell align="center"></TableCell>
+                      <TableCell align="center">{withdrawal}</TableCell>
+                      <TableCell align="center"></TableCell>
+                      <TableCell align="center">{toMarathiNumber(runningBalance)}</TableCell>
+                    </TableRow>
+                  );
+                });
+
+                // Add total row
+                tableRows.push(
+                  <TableRow key="total" sx={{ 
+                    '& td': { 
+                      borderTop: '2px solid black',
+                      fontWeight: 'bold',
+                      backgroundColor: '#f5f5f5'
+                    }
+                  }}>
+                    <TableCell align="center">एकूण</TableCell>
+                    <TableCell align="center">{toMarathiNumber(totalDeposit)}</TableCell>
+                    <TableCell align="center"></TableCell>
+                    <TableCell align="center">{toMarathiNumber(totalWithdrawal)}</TableCell>
+                    <TableCell align="center"></TableCell>
+                    <TableCell align="center">{toMarathiNumber(runningBalance)}</TableCell>
+                  </TableRow>
+                );
+
+                return tableRows;
+              })()}
+            </TableBody>
           </Table>
         </TableContainer>
       </div>

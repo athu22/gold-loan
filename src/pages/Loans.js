@@ -112,6 +112,9 @@ const fetchTableData = async (shopName, month) => {
       getTableData(shopName, prevMonthStr),
     ]);
 
+    console.log('Current Month Data:', currRes.data);
+    console.log('Previous Month Data:', prevRes.data);
+
     // Combine rows: all from current, plus from previous where sodDate is in selected month
     let combined = Array.isArray(currRes.data) ? currRes.data : [];
     if (Array.isArray(prevRes.data)) {
@@ -124,6 +127,7 @@ const fetchTableData = async (shopName, month) => {
       combined = [...combined, ...prevMonthSodRows];
     }
 
+    console.log('Combined Data:', combined);
     setTableData(combined);
   } catch (error) {
     console.error('Error fetching table data:', error);
@@ -319,9 +323,18 @@ function numberToMarathiWords(num) {
   return words.trim();
 }
 
+// Add this function at the top with other utility functions
+function marathiToNumber(marathiStr) {
+  if (!marathiStr) return 0;
+  const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+  return parseInt(marathiStr.split('').map(d => marathiDigits.indexOf(d)).join(''));
+}
+
 const groupedRows = React.useMemo(() => {
   const [year, month] = selectedMonth.split('-').map(Number);
   const dateSet = new Set();
+  let runningBalance = Number(settings.balanceAmount) || 0;
+  let sodRunningBalance = Number(settings.balanceAmount) || 0; // Separate balance for नावेचा तपशील
 
   // Add first day of the month
   const firstDayOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -351,13 +364,34 @@ const groupedRows = React.useMemo(() => {
       if (date === firstDayOfMonth) {
         return {
           date,
-          jama: { sodDate: date, name: 'पुरांत', accountNo: '', goldRate: settings.balanceAmount || 0 },
-          sod: { date: date, name: 'पुरांत', accountNo: '', goldRate: settings.balanceAmount || 0 }
+          jama: { sodDate: date, name: 'पुरांत', accountNo: '', goldRate: runningBalance },
+          sod: { date: date, name: 'पुरांत', accountNo: '', goldRate: sodRunningBalance }
         };
       }
       const jama = filteredTableData.find(row => row.sodDate === date) || null;
       const sod = filteredTableData.find(row => row.date === date) || null;
-      return { date, jama, sod };
+
+      // Update running balance for जमा entries
+      if (jama && jama.name !== 'पुरांत') {
+        const goldRate = marathiToNumber(jama.goldRate);
+        const vayaj = marathiToNumber(jama.vayaj);
+        runningBalance += (goldRate + vayaj);
+        sodRunningBalance += (goldRate + vayaj);
+      }
+
+      // Update running balance for नावे entries
+      if (sod && sod.name !== 'पुरांत') {
+        const goldRate = marathiToNumber(sod.goldRate);
+        sodRunningBalance -= goldRate;
+      }
+
+      return { 
+        date, 
+        jama, 
+        sod,
+        runningBalance,
+        sodRunningBalance // Add separate running balance for नावेचा तपशील
+      };
     });
 }, [filteredTableData, selectedMonth, settings.balanceAmount]);
 
@@ -456,9 +490,29 @@ const groupedRows = React.useMemo(() => {
                             'श्री पुरंत बाकी जमा'
                           ) : (
                             <>
-                              श्री {row.jama.name} यांचे {numberToMarathiWords(Number(row.jama.goldRate))} रुपये रक्कम व्याज जमा
-                              {row.jama.item ? ` त्या पोटी टेवलीली ${row.jama.item}` : ''}
+                              {(() => {
+                                // Convert Marathi numerals to regular numbers
+                                const goldRate = marathiToNumber(row.jama.goldRate);
+                                const vayaj = marathiToNumber(row.jama.vayaj);
+                                const total = goldRate + vayaj;
+                                
+                                console.log('जमा तपशील:', {
+                                  नाव: row.jama.name,
+                                  रक्कम: goldRate,
+                                  व्याज: vayaj,
+                                  एकूण: total,
+                                  rawGoldRate: row.jama.goldRate,
+                                  rawVayaj: row.jama.vayaj
+                                });
+                                
+                                return (
+                                  <>
+                                    श्री {row.jama.name} यांचे {numberToMarathiWords(total)} 
+                                    {row.jama.item ? ` जमा त्या पोटी ठेवलेले  ${row.jama.item}` : ''}
                               {row.jama.sodDate ? ` सोडवली` : ''}
+                                  </>
+                                );
+                              })()}
                             </>
                           )
                         ) : ''}
@@ -474,8 +528,23 @@ const groupedRows = React.useMemo(() => {
                             'श्री पुरंत बाकी नावे'
                           ) : (
                             <>
-                              श्री {row.sod.name} यांचे नाव {numberToMarathiWords(Number(row.sod.goldRate))}
+                              {(() => {
+                                // Convert Marathi numerals to regular numbers
+                                const goldRate = marathiToNumber(row.sod.goldRate);
+                                
+                                console.log('नावे तपशील:', {
+                                  नाव: row.sod.name,
+                                  रक्कम: goldRate,
+                                  rawGoldRate: row.sod.goldRate
+                                });
+                                
+                                return (
+                                  <>
+                                    श्री {row.sod.name} यांचे {numberToMarathiWords(goldRate)} रुपये 
                               {row.sod.item ? ` मात्र ${row.sod.item} ठेवले.` : ''}
+                                  </>
+                                );
+                              })()}
                             </>
                           )
                         ) : ''}
@@ -511,12 +580,12 @@ const groupedRows = React.useMemo(() => {
                           <TableCell align="center">{formatMarathiDate(row.date)}</TableCell>
                           <TableCell align="center">श्री पुरंत बाकी जमा</TableCell>
                           <TableCell align="center"></TableCell>
-                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(settings.balanceAmount || 0)}</TableCell>
+                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.runningBalance)}</TableCell>
                           <TableCell align="center"></TableCell>
                           <TableCell align="center">{formatMarathiDate(row.date)}</TableCell>
                           <TableCell align="center">श्री पुरंत बाकी नावे</TableCell>
                           <TableCell align="center"></TableCell>
-                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(settings.balanceAmount || 0)}</TableCell>
+                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.sodRunningBalance)}</TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell colSpan={9} sx={{ borderBottom: '2px solid #000', padding: 0 }}></TableCell>

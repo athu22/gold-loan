@@ -421,13 +421,35 @@ function Customers() {
     printWindow.close();
   };
 
+  // Add this function before calculateInterest
+  const marathiToRegular = (str) => {
+    if (!str) return 0;
+    const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+    return parseFloat(str.split('').map(d => marathiDigits.indexOf(d)).join(''));
+  };
+
   const calculateInterest = (amount, days) => {
-    // Convert to numbers, removing any non-numeric characters
-    const principal = parseFloat(String(amount).replace(/[^\d.]/g, ''));
+    // Convert to numbers, handling both regular and Marathi numerals
+    const principal = typeof amount === 'string' ? marathiToRegular(amount) : parseFloat(String(amount).replace(/[^\d.]/g, ''));
     const daysNum = parseInt(String(days).replace(/[^\d]/g, ''));
     const interestRate = parseFloat(settings.interestRate) || 2.5;
 
+    console.log('Interest Calculation Details:', {
+      मुदल_मराठी: amount,
+      मुदल_संख्या: principal,
+      दिवस: daysNum,
+      व्याज_दर: interestRate,
+      सूत्र: '(मुदल * व्याज_दर * दिवस) / (100 * 365)',
+      गणना: `(${principal} * ${interestRate} * ${daysNum}) / (100 * 365)`,
+      व्याज: (principal * interestRate * daysNum) / (100 * 365)
+    });
+
     if (isNaN(principal) || isNaN(daysNum) || isNaN(interestRate)) {
+      console.log('Invalid values for interest calculation:', {
+        मुदल: principal,
+        दिवस: daysNum,
+        व्याज_दर: interestRate
+      });
       return '०';
     }
 
@@ -435,7 +457,14 @@ function Customers() {
     const interest = (principal * interestRate * daysNum) / (100 * 365);
     
     // Format the interest to 2 decimal places and convert to Marathi numerals
-    return toMarathiNumber(interest.toFixed(2));
+    const formattedInterest = toMarathiNumber(interest.toFixed(2));
+    
+    console.log('Final Interest:', {
+      कच्चा_व्याज: interest,
+      फॉर्मेटेड_व्याज: formattedInterest
+    });
+
+    return formattedInterest;
   };
 
   const handleCellChange = (index, field, value) => {
@@ -455,11 +484,21 @@ function Customers() {
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
+        console.log('Date Calculation:', {
+          कर्ज_दिनांक: loanDate,
+          सोड_दिनांक: returnDate,
+          दिवस: diffDays
+        });
+        
         // Update the days field
         updatedRows[index].divas = diffDays.toString();
         
-        // Recalculate interest when days change
+        // Calculate interest automatically when days are updated
         if (updatedRows[index].goldRate) {
+          console.log('Calculating interest after date change:', {
+            मुदल: updatedRows[index].goldRate,
+            दिवस: diffDays
+          });
           const interest = calculateInterest(updatedRows[index].goldRate, diffDays);
           updatedRows[index].vayaj = interest;
         }
@@ -469,6 +508,10 @@ function Customers() {
     // Calculate interest when amount changes
     if (field === 'goldRate') {
       const days = updatedRows[index].divas || '0';
+      console.log('Calculating interest after amount change:', {
+        मुदल: value,
+        दिवस: days
+      });
       const interest = calculateInterest(value, days);
       updatedRows[index].vayaj = interest;
     }
@@ -476,18 +519,12 @@ function Customers() {
     // Calculate interest when days change
     if (field === 'divas') {
       const amount = updatedRows[index].goldRate || '0';
+      console.log('Calculating interest after days change:', {
+        मुदल: amount,
+        दिवस: value
+      });
       const interest = calculateInterest(amount, value);
       updatedRows[index].vayaj = interest;
-    }
-
-    // When date is entered, ensure it's treated as a jama entry
-    if (field === 'date' && value) {
-      updatedRows[index].isJama = true;
-    }
-
-    // When sodDate is entered, ensure it's treated as a sod entry
-    if (field === 'sodDate' && value) {
-      updatedRows[index].isSod = true;
     }
 
     setRows(updatedRows);

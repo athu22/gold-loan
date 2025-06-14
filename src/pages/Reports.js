@@ -143,7 +143,22 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
     {customer.kitPage || '०'}
   </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.paNumber || '०'}
+    {customer.sodDate ? (
+      <Box sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '24px',
+        height: '24px',
+        borderRadius: '50%',
+        border: '1px solid #000',
+        fontSize: '14px'
+      }}>
+        {customer.pavtiNo || '०'}
+      </Box>
+    ) : (
+      customer.pavtiNo || '०'
+    )}
   </TableCell>
   </TableRow>
  {customer.sodDate && (
@@ -606,7 +621,22 @@ return (
     {customer.kitPage || '०'}
   </TableCell>
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-    {customer.pavtiNo|| '०'}
+    {customer.sodDate ? (
+      <Box sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '24px',
+        height: '24px',
+        borderRadius: '50%',
+        border: '1px solid #000',
+        fontSize: '14px'
+      }}>
+        {customer.pavtiNo || '०'}
+      </Box>
+    ) : (
+      customer.pavtiNo || '०'
+    )}
   </TableCell>
   </TableRow>
  {customer.sodDate && (
