@@ -60,9 +60,19 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
   {/* Left: खाते क्र: */}
   <Box sx={{ width: '33%', display: 'flex', alignItems: 'center' }}>
-    <Typography variant="subtitle1" align="left">
+    <Box className="account-box" sx={{
+      border: '2px solid #000',
+      borderRadius: '4px',
+      padding: '4px 14px',
+      fontWeight: 'bold',
+      fontSize: '16px',
+      minWidth: '90px',
+      textAlign: 'left',
+      background: '#fff',
+      display: 'inline-block',
+    }}>
       खाते क्र: {customer.accountNo || '-'}
-    </Typography>
+    </Box>
   </Box>
   {/* Center: Name and Address */}
   <Box sx={{ width: '33%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -324,9 +334,6 @@ const handlePrint = () => {
             width: 100% !important;
             max-width: 100% !important;
             box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
           }
           .MuiPaper-root {
             box-shadow: none !important;
@@ -334,14 +341,12 @@ const handlePrint = () => {
             margin-bottom: 24px !important;
             padding: 16px !important;
             width: 100% !important;
-            max-width: 100% !important;
             box-sizing: border-box;
           }
           table {
             page-break-inside: avoid;
             border-collapse: collapse;
             width: 100% !important;
-            max-width: 100% !important;
             margin-top: 8px;
             background: #fff;
           }
@@ -377,19 +382,32 @@ const handlePrint = () => {
               width: 100% !important;
               max-width: 100% !important;
               box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
             }
             .MuiPaper-root {
               box-shadow: none !important;
               border: 2px solid #000 !important;
               width: 100% !important;
-              max-width: 100% !important;
               box-sizing: border-box;
             }
             .no-print {
               display: none !important;
+            }
+            .account-box { 
+              border: 2px solid #000 !important; 
+              border-radius: 4px !important; 
+              padding: 4px 14px !important; 
+              font-weight: bold !important; 
+              font-size: 16px !important; 
+              min-width: 90px !important; 
+              text-align: left !important; 
+              background: #fff !important; 
+              display: inline-block !important; 
+            }
+            /* Make customer name bigger */
+            .MuiTypography-subtitle1 {
+              font-size: 16px !important;
+              font-weight: bold !important;
+              margin: 10px 0 !important;
             }
           }
         </style>

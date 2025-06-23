@@ -116,23 +116,31 @@ const fetchTableData = async (shopName, month) => {
     console.log('Previous Month Data:', prevRes.data);
 
     // Calculate last month's closing balance (नावे पुरांत बाकी)
-    let lastMonthClosingBalance = Number(settings.balanceAmount) || 0; // Start with initial balance if no prev data
+    let lastMonthClosingBalance = Number(settings.balanceAmount) || 0; // Default to पुरांत बाकी from settings
     if (Array.isArray(prevRes.data)) {
-      const prevMonthJamaSum = prevRes.data.reduce((sum, entry) => {
-        if (entry.name !== 'पुरांत') {
-          return sum + marathiToNumber(entry.goldRate) + marathiToNumber(entry.vayaj || 0);
+      // Find the last date in prevRes.data
+      let prevMonthDates = prevRes.data
+        .map(row => row.date || row.sodDate)
+        .filter(Boolean)
+        .map(d => new Date(d).toISOString().slice(0, 10));
+      let lastPrevDate = prevMonthDates.sort().pop();
+      // Sum for last day only
+      let prevDayOpening = 0;
+      let totalGold = 0;
+      let totalVayaj = 0;
+      let foundClosing = false;
+      prevRes.data.forEach(row => {
+        const rowDate = (row.date || row.sodDate) ? new Date(row.date || row.sodDate).toISOString().slice(0, 10) : null;
+        if (rowDate === lastPrevDate) {
+          if (row.name === 'पुरांत') prevDayOpening = marathiToNumber(row.goldRate);
+          totalGold += marathiToNumber(row.goldRate);
+          totalVayaj += marathiToNumber(row.vayaj || 0);
+          foundClosing = true;
         }
-        return sum;
-      }, 0);
-
-      const prevMonthSodSum = prevRes.data.reduce((sum, entry) => {
-        if (entry.name !== 'पुरांत') {
-          return sum + marathiToNumber(entry.goldRate);
-        }
-        return sum;
-      }, 0);
-
-      lastMonthClosingBalance = lastMonthClosingBalance + prevMonthJamaSum - prevMonthSodSum;
+      });
+      if (foundClosing) {
+        lastMonthClosingBalance = prevDayOpening + totalGold + totalVayaj;
+      } // else keep settings.balanceAmount
     }
 
     // Combine rows: all from current, plus from previous where sodDate is in selected month
@@ -206,92 +214,94 @@ const handlePrint = () => {
         <title>कॅश बुक - ${selectedShop}</title>
         <style>
           @page {
-            size: landscape;
-            margin: 15mm;
+            size: A3 landscape;
+            margin: 8mm;
           }
           body {
-            font-family: Arial, sans-serif;
-            font-size: 16px;
-            padding: 20px;
+            font-family: 'Noto Sans Devanagari', 'Courier New', Courier, monospace;
+            font-size: 9.5px;
+            padding: 0;
+            color: #000;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin: 0;
+            table-layout: fixed;
           }
           th, td {
             border: 1px solid #000;
-            padding: 12px;
+            padding: 2px 2px;
             text-align: center;
-            font-size: 15px;
+            font-size: 9.5px;
+            word-break: break-word;
+            vertical-align: middle;
+            overflow: hidden;
           }
           th {
-            background-color: #f5f5f5;
+            background: #f5f5f5;
             font-weight: bold;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          thead {
+            display: table-header-group;
+          }
+          tfoot {
+            display: table-footer-group;
           }
           .shop-name {
             text-align: center;
-            font-size: 24px;
+            font-size: 15px;
             font-weight: bold;
-            margin-bottom: 0px;
+            margin-bottom: 0;
             text-transform: uppercase;
           }
           .marathi-sentence {
             text-align: left;
-            font-size: 16px;
+            font-size: 10px;
             font-weight: normal;
-            margin-bottom: 10px;
-            margin-top: 0px;
+            margin-bottom: 4px;
+            margin-top: 0;
           }
-          .column-labels {
-            display: flex;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-          }
-          .jama-section, .kharch-section {
-            width: 50%;
-            text-align: center;
-            font-size: 20px;
+          .amount-cell { font-weight: bold; }
+          .vayaj-row td { border-bottom: 2px double #000 !important; }
+          .purant-sod-row td {
+            border-bottom: 2px solid #000 !important;
             font-weight: bold;
+            background: #f8f9fa;
           }
-          .jama-section {
-            padding-right: 25%;
-          }
-          .kharch-section {
-            padding-left: 25%;
-          }
-          .day-separator {
-            border-bottom: 2px solid #000;
-          }
-          .amount-cell {
+          th:nth-child(1), td:nth-child(1) { width: 7%; min-width: 55px; }
+          th:nth-child(4), td:nth-child(4) { width: 8%; min-width: 60px; }
+          th:nth-child(5), td:nth-child(5) { width: 7%; min-width: 55px; }
+          th:nth-child(6), td:nth-child(6) { width: 7%; min-width: 55px; }
+          th:nth-child(9), td:nth-child(9) { width: 8%; min-width: 60px; }
+          .vayaj-row .MuiTableCell-root { border-bottom: 2px double #000 !important; }
+          .purant-sod-row td {
+            border-bottom: 2px solid #000 !important;
             font-weight: bold;
+            background: #f8f9fa;
           }
-          .vayaj-row td {
-            border-bottom: 3px double #000 !important;
-          }
-          /* Print-specific vertical line styling */
-          th:nth-child(5), td:nth-child(5) {
-            border-right: 5px solid #000 !important;
-          }
-          th:nth-child(6), td:nth-child(6) {
-            border-left: none !important;
-          }
+          th:nth-child(5), td:nth-child(5) { border-right: 3px double #000 !important; }
+          th:nth-child(6), td:nth-child(6) { border-left: none !important; }
+          th:nth-child(2), td:nth-child(2) { width: 18%; min-width: 120px; }
+          th:nth-child(3), td:nth-child(3) { width: 10%; min-width: 70px; }
+          th:nth-child(7), td:nth-child(7) { width: 18%; min-width: 120px; }
+          th:nth-child(8), td:nth-child(8) { width: 10%; min-width: 70px; }
           @media print {
-            body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            table { page-break-after: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
           }
         </style>
       </head>
       <body>
         <div class="shop-name">${selectedShop}</div>
         <div class="marathi-sentence">${marathiSentence}</div>
-        <div class="column-labels">
-          <div class="jama-section">जमा</div>
-          <div class="kharch-section">नावे</div>
-        </div>
         ${printContent.outerHTML}
       </body>
     </html>
@@ -468,6 +478,11 @@ const groupedRows = React.useMemo(() => {
         jama: null,
         sod: { name: 'पुरांत', goldRate: actualClosingSodBalance, date: date }
       });
+      dailyRowsForThisDate.push({
+        type: 'purant_sod_amount',
+        date: date,
+        openingBalance: openingJamaBalanceForToday
+      });
     }
 
     // Update currentRunningBalance for the next day's iteration
@@ -476,7 +491,40 @@ const groupedRows = React.useMemo(() => {
     return dailyRowsForThisDate;
   });
 
-  return allDailyRows.flat(); // Flatten the array of arrays into a single array of rows to be rendered
+  const flatRows = allDailyRows.flat();
+
+  // Find the last date in the month
+  const lastDate = sortedDates[sortedDates.length - 1];
+
+  // Get last day's opening balance
+  let lastDayOpening = 0;
+  for (const row of flatRows) {
+    if (row.type === 'purant_jama' && row.date === lastDate) {
+      lastDayOpening = row.jama.goldRate;
+      break;
+    }
+  }
+
+  // Sum goldRate and vayaj for the last day only
+  let totalGold = 0;
+  let totalVayaj = 0;
+  filteredTableData.forEach(row => {
+    // Check if this row is for the last date
+    if (
+      (row.sodDate && new Date(row.sodDate).toISOString().slice(0, 10) === lastDate) ||
+      (row.date && new Date(row.date).toISOString().slice(0, 10) === lastDate)
+    ) {
+      totalGold += marathiToNumber(row.goldRate);
+      totalVayaj += marathiToNumber(row.vayaj || 0);
+    }
+  });
+
+  flatRows.push({
+    type: 'month_end_summary',
+    amount: lastDayOpening + totalGold + totalVayaj
+  });
+
+  return flatRows;
 }, [filteredTableData, selectedMonth, settings.balanceAmount]);
 
   return (
@@ -594,7 +642,7 @@ const groupedRows = React.useMemo(() => {
                         backgroundColor: '#f8f9fa',
                         '& td': {
                           fontWeight: 'bold',
-                          borderBottom: '2px solid #000'
+                          borderBottom: '3px double #000'
                         }
                       }}>
                         <TableCell align="center">{formatMarathiDate(row.date)}</TableCell>
@@ -621,8 +669,8 @@ const groupedRows = React.useMemo(() => {
                             <>
                               श्री {jamaEntry.name} यांचे {numberToMarathiWords(marathiToNumber(jamaEntry.goldRate) + marathiToNumber(jamaEntry.vayaj || 0))} 
                               {jamaEntry.item ? ` जमा त्या पोटी ठेवलेले  ${jamaEntry.item}` : ''}
-                              {jamaEntry.sodDate ? ` सोडवली` : ''}
-                              {jamaEntry.pavtiNo ? ` पावती क्र. ${jamaEntry.pavtiNo}` : ''}
+                              {jamaEntry.sodDate ? ` सोडवले ` : ''}
+                              {jamaEntry.pavtiNo ? ` सोडपावती क्र. ${jamaEntry.pavtiNo}` : ''}
                             </>
                           ) : ''}
                         </TableCell>
@@ -635,8 +683,8 @@ const groupedRows = React.useMemo(() => {
                           {sodEntry ? (
                             <>
                               श्री {sodEntry.name} यांचे नावे {numberToMarathiWords(marathiToNumber(sodEntry.goldRate))} रुपये 
-                              {sodEntry.item ? ` मात्र ${sodEntry.item} ठेवले.` : ''}
-                              {sodEntry.moparu ? ` मोपारू क्र. ${sodEntry.moparu}` : ''}
+                              {sodEntry.item ? ` मात्र त्यापोटी सोने ${sodEntry.item} ठेवले.` : ''}
+                              {sodEntry.moparu ? ` ठेव पावती क्र. ${sodEntry.moparu}` : ''}
                             </>
                           ) : ''}
                         </TableCell>
@@ -669,31 +717,52 @@ const groupedRows = React.useMemo(() => {
                     );
                   } else if (row.type === 'purant_sod') {
                     return (
-                      <React.Fragment key={idx}>
-                        <TableRow sx={{ 
+                      <TableRow 
+                        key={idx}
+                        className="purant-sod-row2"
+                        sx={{ 
                           backgroundColor: '#f8f9fa',
-                          '& td': {
-                            fontWeight: 'bold',
-                            borderBottom: '2px solid #000'
-                          }
-                        }}>
-                          <TableCell align="center"></TableCell>
-                          <TableCell align="center"></TableCell>
-                          <TableCell align="center"></TableCell>
-                          <TableCell align="center"></TableCell>
-                          <TableCell align="center"></TableCell>
-                          <TableCell align="center">{formatMarathiDate(row.sod.date)}</TableCell>
-                          <TableCell align="center">श्री पुरंत बाकी नावे</TableCell>
-                          <TableCell align="center"></TableCell>
-                          <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.sod.goldRate)}</TableCell>
-                        </TableRow>
-                        {/* Add day separator if this is the last row of the day and not the absolute last row */}
-                        {isLastRowOfDay && idx < groupedRows.length - 1 && (
-                          <TableRow>
-                            <TableCell colSpan={9} sx={{ borderBottom: '2px solid #000', padding: 0 }}></TableCell>
-                          </TableRow>
-                        )}
-                      </React.Fragment>
+                          
+                        }}
+                      >
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center">{formatMarathiDate(row.sod.date)}</TableCell>
+                        <TableCell align="center">श्री पुरंत बाकी नावे</TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.sod.goldRate)}</TableCell>
+                      </TableRow>
+                    );
+                  } else if (row.type === 'purant_sod_amount') {
+                    return (
+                      <TableRow key={idx} className="purant-sod-row" sx={{ backgroundColor: '#f8f9fa', '& td': { fontWeight: 'bold', borderBottom: '3px solid #000 !important' } }}>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.openingBalance)}</TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.openingBalance)}</TableCell>
+                      </TableRow>
+                    );
+                  } else if (row.type === 'month_end_summary') {
+                    return (
+                      <TableRow key={idx} className="purant-sod-row" sx={{ backgroundColor: '#e0e0e0', '& td': { fontWeight: 'bold', borderBottom: '3px solid #000 !important' } }}>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center" className="amount-cell">{formatMarathiCurrency(row.amount)}</TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center"></TableCell>
+                      </TableRow>
                     );
                   }
                   return null; // Should not happen with defined types

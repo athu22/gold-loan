@@ -67,9 +67,19 @@ function toMarathiNumber(str) {
 
 // Add this new function to convert Marathi numerals to regular numbers
 function marathiToNumber(marathiStr) {
-  if (!marathiStr) return 0;
+  if (marathiStr === null || marathiStr === undefined) return 0;
   const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
-  return parseInt(marathiStr.split('').map(d => marathiDigits.indexOf(d)).join(''));
+  // Convert to string, in case it's a number
+  const str = String(marathiStr);
+  // If it's already a regular number string, just return the number
+  if (/^\d+$/.test(str)) return parseInt(str, 10);
+  // Otherwise, convert Marathi digits to number
+  return parseInt(
+    str
+      .split('')
+      .map(d => marathiDigits.indexOf(d) !== -1 ? marathiDigits.indexOf(d) : d)
+      .join('')
+  ) || 0;
 }
 
 React.useEffect(() => {
@@ -94,7 +104,7 @@ React.useEffect(() => {
     win.document.write(`
       <html>
         <head>
-          <title>भौदल खाते</title>
+          <title>भडवल खाते</title>
           <style>
             @page {
               size: landscape;
