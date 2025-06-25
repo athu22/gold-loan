@@ -119,6 +119,7 @@ function Customers() {
     vayaj: '',
     address: '',
     signature: '',
+    checkNo: '',
   };
 
   const [rows, setRows] = useState([{ ...emptyRow }]);
@@ -421,16 +422,16 @@ function Customers() {
     printWindow.close();
   };
 
-  // Add this function before calculateInterest
-  const marathiToRegular = (str) => {
+  // Helper to convert Marathi numerals to regular numbers
+  function marathiToNumber(str) {
     if (!str) return 0;
     const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
-    return parseFloat(str.split('').map(d => marathiDigits.indexOf(d)).join(''));
-  };
+    return parseFloat(String(str).split('').map(d => marathiDigits.includes(d) ? marathiDigits.indexOf(d) : d).join(''));
+  }
 
   const calculateInterest = (amount, days) => {
     // Convert to numbers, handling both regular and Marathi numerals
-    const principal = typeof amount === 'string' ? marathiToRegular(amount) : parseFloat(String(amount).replace(/[^\d.]/g, ''));
+    const principal = typeof amount === 'string' ? marathiToNumber(amount) : parseFloat(String(amount).replace(/[^\d.]/g, ''));
     const daysNum = parseInt(String(days).replace(/[^\d]/g, ''));
     const interestRate = parseFloat(settings.interestRate) || 2.5;
 
@@ -571,6 +572,19 @@ function Customers() {
         row => row && (row.date || row.sodDate) // Only rows with at least one date
       );
 
+      // Add validation for both Marathi and English numerals
+      const invalidRow = rows.find(
+        row => {
+          const goldRateNum = parseFloat(row.goldRate) > 0 ? parseFloat(row.goldRate) : marathiToNumber(row.goldRate);
+          return goldRateNum > 20000 && !row.checkNo;
+        }
+      );
+      if (invalidRow) {
+        setSnackbar({ open: true, message: '₹20,000 पेक्षा जास्त रक्कम असल्यास Check No आवश्यक आहे.', severity: 'error' });
+        setLoading(false);
+        return;
+      }
+
       // Save all rows for the selected month
       const response = await saveTableData(selectedShop, selectedMonth, validRows);
       if (!response.success) {
@@ -709,19 +723,23 @@ function Customers() {
               </Typography>
             </Box>
           ) : (
-            <TableContainer component={Paper} sx={{ overflowX: 'auto', width: '100%' }}>
-              <Table sx={{ minWidth: 1800 }}>
+            <TableContainer sx={{ overflowX: 'auto', width: '100%', background: 'white' }}>
+              <Table className="ledger-table" sx={{ minWidth: 1800 }}>
                 <TableHead>
                   <TableRow>
                     {headings.map((heading, idx) => (
                       <TableCell key={idx} align="center" sx={{ fontWeight: 'bold' }}>{heading}</TableCell>
                     ))}
+                    {rows.some(row => (parseFloat(row.goldRate) > 20000 || marathiToNumber(row.goldRate) > 20000)) && (
+                      <TableCell align="center" sx={{ fontWeight: 'bold' }}>Check No</TableCell>
+                    )}
                     <TableCell align="center">क्रिया</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {rows.map((row, idx) => {
                     if (!row) return null; // Skip undefined/null rows
+                    const goldRateNum = parseFloat(row.goldRate) > 0 ? parseFloat(row.goldRate) : marathiToNumber(row.goldRate);
                     return (
                       <TableRow key={idx}>
                         <TableCell align="center">{toMarathiNumber(idx + 1)}</TableCell>
@@ -776,6 +794,16 @@ function Customers() {
                             variant="standard"
                           />
                         </TableCell>
+                        {(goldRateNum > 20000) && (
+                          <TableCell align="center">
+                            <TextField
+                              value={row.checkNo || ''}
+                              onChange={e => handleCellChange(idx, 'checkNo', e.target.value)}
+                              variant="standard"
+                              placeholder="Check No"
+                            />
+                          </TableCell>
+                        )}
                         <TableCell align="center">
                           <TextField
                             type="date"

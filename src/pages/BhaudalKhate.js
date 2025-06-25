@@ -177,8 +177,8 @@ React.useEffect(() => {
         <body>
           <div class="header">
             <div class="shop-name">${shopDisplayName}</div>
-            <div class="title">भौदल खाते</div>
-            <div class="subtitle">नमुना नंबर १३ (नियम १९ पहा)</div>
+            <div class="title">भांडवल खाते</div>
+            <div class="subtitle">नमुना नंबर १३ (नियम १८ पहा)</div>
             <div class="subtitle">सन: ${toMarathiNumber(period)}</div>
           </div>
           ${printContents}
@@ -266,23 +266,37 @@ React.useEffect(() => {
             </TableHead>
             <TableBody>
               {(() => {
+                const openingBalanceDate = `${selectedMonth}-01`;
                 let runningBalance = Number(initialAmount);
                 let totalDeposit = 0;
                 let totalWithdrawal = 0;
 
-                console.log('Initial Balance:', runningBalance);
+                const tableRows = [];
 
-                // Flatten rows: if both sodDate and date exist, create two rows
+                // 1. Add opening balance row. This is not a transaction, but the starting point.
+                // It shows 0 for deposit/withdrawal, and the initial amount as the starting balance.
+                tableRows.push(
+                  <TableRow key="opening-balance">
+                    <TableCell align="center">{toMarathiDate(openingBalanceDate)}</TableCell>
+                    <TableCell align="center">{toMarathiNumber('0')}</TableCell>
+                    <TableCell align="center"></TableCell>
+                    <TableCell align="center">{toMarathiNumber('0')}</TableCell>
+                    <TableCell align="center"></TableCell>
+                    <TableCell align="center">{toMarathiNumber(runningBalance)}</TableCell>
+                  </TableRow>
+                );
+
+                // Flatten and sort transactions from Firebase
                 const flatRows = [];
                 rows.forEach(row => {
-                  if (row.sodDate) {
+                  if (row.sodDate) { // Deposit (money in)
                     flatRows.push({
                       type: 'deposit',
                       date: row.sodDate,
                       goldRate: row.goldRate,
                     });
                   }
-                  if (row.date) {
+                  if (row.date) { // Withdrawal (money out)
                     flatRows.push({
                       type: 'withdrawal',
                       date: row.date,
@@ -290,58 +304,33 @@ React.useEffect(() => {
                     });
                   }
                 });
-
-                // Sort by date (ascending)
+                
                 flatRows.sort((a, b) => {
                   if (!a.date) return 1;
                   if (!b.date) return -1;
                   return a.date.localeCompare(b.date);
                 });
 
-                console.log('All Transactions:', flatRows);
-
-                const tableRows = flatRows.map((row, idx) => {
-                  // Convert Marathi numerals to regular numbers
+                // 2. Process sorted transactions
+                flatRows.forEach((row, idx) => {
                   let displayAmount = marathiToNumber(row.goldRate) || 0;
                   let deposit = '';
                   let withdrawal = '';
 
-                  console.log(`Processing row ${idx}:`, {
-                    type: row.type,
-                    date: row.date,
-                    amount: displayAmount,
-                    currentBalance: runningBalance,
-                    rawGoldRate: row.goldRate
-                  });
-
                   if (row.type === 'deposit') {
                     deposit = row.goldRate || '०';
                     totalDeposit += displayAmount;
-                    // Subtract from running balance for deposits
-                    runningBalance -= displayAmount;
+                    runningBalance += displayAmount; // Deposit increases balance
                     withdrawal = '०';
-                    console.log('After Deposit:', {
-                      amount: displayAmount,
-                      newBalance: runningBalance,
-                      totalDeposit,
-                      rawAmount: row.goldRate
-                    });
                   } else if (row.type === 'withdrawal') {
                     withdrawal = row.goldRate || '०';
                     totalWithdrawal += displayAmount;
-                    // Add to running balance for withdrawals
-                    runningBalance += displayAmount;
+                    runningBalance -= displayAmount; // Withdrawal decreases balance
                     deposit = '०';
-                    console.log('After Withdrawal:', {
-                      amount: displayAmount,
-                      newBalance: runningBalance,
-                      totalWithdrawal,
-                      rawAmount: row.goldRate
-                    });
                   }
 
-                  return (
-                    <TableRow key={idx}>
+                  tableRows.push(
+                    <TableRow key={`${row.date}-${idx}`}>
                       <TableCell align="center">{toMarathiDate(row.date)}</TableCell>
                       <TableCell align="center">{deposit}</TableCell>
                       <TableCell align="center"></TableCell>
@@ -352,7 +341,7 @@ React.useEffect(() => {
                   );
                 });
 
-                // Add total row
+                // 3. Add total row
                 tableRows.push(
                   <TableRow key="total" sx={{ 
                     '& td': { 

@@ -82,6 +82,7 @@ useEffect(() => {
         const shopsArray = Object.entries(response.data || {}).map(([id, data]) => ({
           id,
           name: data.shopName,
+          address: data.address || '',
         }));
         setShops(shopsArray);
       }
@@ -203,8 +204,11 @@ const handlePrint = () => {
   const printContent = document.getElementById('loans-table');
   const originalContents = document.body.innerHTML;
 
+  const selectedShopDetails = shops.find(s => s.name === selectedShop);
+  const shopAddress = selectedShopDetails ? selectedShopDetails.address : '';
+
   // Marathi sentence to show
-  const marathiSentence = 'महाराष्ट्र सावकारी (नियमाना) अधिनियम २०१४ नमुना ६ नियम १८ पहा.';
+  const marathiSentence = 'महाराष्ट्र सावकारी (नियमाना) अधिनियम २०१४ नमुना नं-६ व नं-७ नियम १८ पहा.';
 
   // Create a new window for printing
   const printWindow = window.open('', '_blank');
@@ -222,6 +226,30 @@ const handlePrint = () => {
             font-size: 9.5px;
             padding: 0;
             color: #000;
+          }
+          .print-header {
+            position: relative;
+            margin-bottom: 10px;
+            min-height: 60px; /* Increased for new line */
+          }
+          .section-headers {
+            display: flex;
+            width: 100%;
+            font-weight: bold;
+            text-align: center;
+          }
+          .section-headers > div {
+            padding: 4px;
+            font-size: 14px;
+          }
+          .jama-header {
+            flex: 5;
+          }
+          .kharch-header {
+            flex: 4;
+          }
+          #loans-table-print-wrapper table {
+             margin-top: -1px;
           }
           table {
             width: 100%;
@@ -256,15 +284,22 @@ const handlePrint = () => {
             text-align: center;
             font-size: 15px;
             font-weight: bold;
-            margin-bottom: 0;
             text-transform: uppercase;
           }
+          .main-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 2px;
+          }
           .marathi-sentence {
-            text-align: left;
+            position: absolute;
+            top: 0;
+            right: 0;
             font-size: 10px;
             font-weight: normal;
-            margin-bottom: 4px;
-            margin-top: 0;
+            border: 1px solid #000;
+            padding: 5px;
           }
           .amount-cell { font-weight: bold; }
           .vayaj-row td { border-bottom: 2px double #000 !important; }
@@ -300,9 +335,18 @@ const handlePrint = () => {
         </style>
       </head>
       <body>
-        <div class="shop-name">${selectedShop}</div>
-        <div class="marathi-sentence">${marathiSentence}</div>
-        ${printContent.outerHTML}
+        <div class="print-header">
+          <div style="width:100%">
+            <div class="shop-name">${selectedShop},${shopAddress}</div>
+            <div class="main-title">रोज किर्द  कैश बुक</div>
+          </div>
+          <div class="marathi-sentence">${marathiSentence}</div>
+        </div>
+        <div class="section-headers">
+          <div class="jama-header">जमा</div>
+          <div class="kharch-header">खर्च</div>
+        </div>
+        <div id="loans-table-print-wrapper">${printContent.outerHTML}</div>
       </body>
     </html>
   `);
