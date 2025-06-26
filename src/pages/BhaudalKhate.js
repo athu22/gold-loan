@@ -320,12 +320,12 @@ React.useEffect(() => {
                   if (row.type === 'deposit') {
                     deposit = row.goldRate || '०';
                     totalDeposit += displayAmount;
-                    runningBalance += displayAmount; // Deposit increases balance
+                    runningBalance -= displayAmount; // Deposit decreases balance (as per user request)
                     withdrawal = '०';
                   } else if (row.type === 'withdrawal') {
                     withdrawal = row.goldRate || '०';
                     totalWithdrawal += displayAmount;
-                    runningBalance -= displayAmount; // Withdrawal decreases balance
+                    runningBalance += displayAmount; // Withdrawal increases balance (as per user request)
                     deposit = '०';
                   }
 

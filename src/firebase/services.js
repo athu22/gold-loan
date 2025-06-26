@@ -367,16 +367,76 @@ export const saveTableData = async (shopName, month, rows) => {
 export const getTableData = async (shopName, month) => {
   try {
     if (!shopName || !month) {
-      return { success: false, error: 'दुकान नाव आणि महिना आवश्यक आहे' };
+      return { success: true, data: [], closingAmount: 0 };
     }
     const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
     const tableRef = ref(database, `shops/${shopKey}/customerTable/${month}`);
     const snapshot = await get(tableRef);
     if (snapshot.exists()) {
+      const monthData = snapshot.val();
+      const closingAmount = monthData.closingAmount || 0;
+      
+      const transactions = Object.keys(monthData)
+        .filter(key => key !== 'closingAmount')
+        .reduce((obj, key) => {
+          obj[key] = monthData[key];
+          return obj;
+        }, {});
+
+      const rowsArray = Object.values(transactions);
+      return { success: true, data: rowsArray, closingAmount: closingAmount };
+    }
+    return { success: true, data: [], closingAmount: 0 };
+  } catch (error) {
+    console.error('Error getting table data:', error);
+    return { success: false, error: error.message, data: [], closingAmount: 0 };
+  }
+};
+
+export const saveClosingBalance = async (shopName, month, closingAmount) => {
+  try {
+    if (!shopName || !month) {
+      return { success: false, error: 'Shop name and month are required.' };
+    }
+    const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
+    const monthRef = ref(database, `shops/${shopKey}/customerTable/${month}`);
+    await update(monthRef, { closingAmount });
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving closing balance:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateClosingBalance = async (shopName, month, closingAmount) => {
+  try {
+    if (!shopName || !month) {
+      return { success: false, error: 'Shop name and month are required.' };
+    }
+    const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
+    const monthRef = ref(database, `shops/${shopKey}/monthly_balances/${month}`);
+    await set(monthRef, { closingAmount });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating closing balance:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getClosingBalance = async (shopName, month) => {
+  try {
+    if (!shopName || !month) {
+      return { success: false, error: 'Shop name and month are required.' };
+    }
+    const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
+    const monthRef = ref(database, `shops/${shopKey}/monthly_balances/${month}`);
+    const snapshot = await get(monthRef);
+    if (snapshot.exists()) {
       return { success: true, data: snapshot.val() };
     }
-    return { success: true, data: [] };
+    return { success: true, data: null };
   } catch (error) {
+    console.error('Error getting closing balance:', error);
     return { success: false, error: error.message };
   }
 };

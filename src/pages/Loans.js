@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 // import RefreshIcon from '@mui/icons-material/Refresh';
-import { getAllShops, getTableData, getShopSettings } from '../firebase/services';
+import { getAllShops, getTableData, getShopSettings, updateClosingBalance, getClosingBalance, saveClosingBalance } from '../firebase/services';
 import {  formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
 
 function Loans() {
@@ -32,6 +32,9 @@ function Loans() {
   const [tableData, setTableData] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [settings, setSettings] = useState({
+    balanceAmount: 0
+  });
+  const [initialShopSettings, setInitialShopSettings] = useState({
     balanceAmount: 0
   });
 
@@ -60,11 +63,15 @@ useEffect(() => {
 
 useEffect(() => {
   if (selectedShop) {
+    setTableData([]);
+    setSettings({ balanceAmount: 0 });
+    setInitialShopSettings({ balanceAmount: 0 });
     const fetchSettings = async () => {
       try {
         const response = await getShopSettings(selectedShop);
         if (response.success && response.data) {
           setSettings(response.data);
+          setInitialShopSettings(response.data);
         }
       } catch (error) {
         console.error('Error fetching settings:', error);
@@ -95,77 +102,34 @@ useEffect(() => {
 const fetchTableData = async (shopName, month) => {
   setLoading(true);
   try {
-    // Parse selected month
     const [year, monthNum] = month.split('-').map(Number);
+    let openingBalance = 0;
 
-    // Calculate previous month (handle January)
-    let prevYear = year;
-    let prevMonth = monthNum - 1;
-    if (prevMonth === 0) {
-      prevMonth = 12;
-      prevYear = year - 1;
-    }
-    const prevMonthStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
-
-    // Fetch current and previous month data
-    const [currRes, prevRes] = await Promise.all([
-      getTableData(shopName, month),
-      getTableData(shopName, prevMonthStr),
-    ]);
-
-    console.log('Current Month Data:', currRes.data);
-    console.log('Previous Month Data:', prevRes.data);
-
-    // Calculate last month's closing balance (नावे पुरांत बाकी)
-    let lastMonthClosingBalance = Number(settings.balanceAmount) || 0; // Default to पुरांत बाकी from settings
-    if (Array.isArray(prevRes.data)) {
-      // Find the last date in prevRes.data
-      let prevMonthDates = prevRes.data
-        .map(row => row.date || row.sodDate)
-        .filter(Boolean)
-        .map(d => new Date(d).toISOString().slice(0, 10));
-      let lastPrevDate = prevMonthDates.sort().pop();
-      // Sum for last day only
-      let prevDayOpening = 0;
-      let totalGold = 0;
-      let totalVayaj = 0;
-      let foundClosing = false;
-      prevRes.data.forEach(row => {
-        const rowDate = (row.date || row.sodDate) ? new Date(row.date || row.sodDate).toISOString().slice(0, 10) : null;
-        if (rowDate === lastPrevDate) {
-          if (row.name === 'पुरांत') prevDayOpening = marathiToNumber(row.goldRate);
-          totalGold += marathiToNumber(row.goldRate);
-          totalVayaj += marathiToNumber(row.vayaj || 0);
-          foundClosing = true;
-        }
-      });
-      if (foundClosing) {
-        lastMonthClosingBalance = prevDayOpening + totalGold + totalVayaj;
-      } // else keep settings.balanceAmount
+    if (monthNum === 4) {
+      openingBalance = Number(initialShopSettings.balanceAmount) || 0;
+    } else {
+      let prevYear = year;
+      let prevMonth = monthNum - 1;
+      if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = year - 1;
+      }
+      const prevMonthStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+      
+      const prevMonthRes = await getTableData(shopName, prevMonthStr);
+      if (prevMonthRes.success && prevMonthRes.closingAmount) {
+        openingBalance = Number(prevMonthRes.closingAmount);
+      } else {
+        openingBalance = Number(initialShopSettings.balanceAmount) || 0;
+      }
     }
 
-    // Combine rows: all from current, plus from previous where sodDate is in selected month
-    let combined = Array.isArray(currRes.data) ? currRes.data : [];
-    if (Array.isArray(prevRes.data)) {
-      const [selYear, selMonth] = month.split('-').map(Number);
-      const prevMonthSodRows = prevRes.data.filter(row => {
-        if (!row || !row.sodDate) return false;
-        const d = new Date(row.sodDate);
-        return d.getFullYear() === selYear && (d.getMonth() + 1) === selMonth;
-      });
-      combined = [...combined, ...prevMonthSodRows];
-    }
+    const currRes = await getTableData(shopName, month);
+    const combined = Array.isArray(currRes.data) ? currRes.data : [];
 
-    console.log('Combined Data:', combined);
-    console.log('Last Month Closing Balance:', lastMonthClosingBalance);
-
-    // Update settings with last month's closing balance, so groupedRows can use it as the starting point
-    setSettings(prev => ({
-      ...prev,
-      balanceAmount: lastMonthClosingBalance
-    }));
-
+    setSettings(prev => ({ ...prev, balanceAmount: openingBalance }));
     setTableData(combined);
+
   } catch (error) {
     console.error('Error fetching table data:', error);
     setSnackbar({ open: true, message: 'डेटा मिळवताना त्रुटी आली', severity: 'error' });
@@ -537,39 +501,23 @@ const groupedRows = React.useMemo(() => {
 
   const flatRows = allDailyRows.flat();
 
-  // Find the last date in the month
-  const lastDate = sortedDates[sortedDates.length - 1];
-
-  // Get last day's opening balance
-  let lastDayOpening = 0;
-  for (const row of flatRows) {
-    if (row.type === 'purant_jama' && row.date === lastDate) {
-      lastDayOpening = row.jama.goldRate;
-      break;
-    }
-  }
-
-  // Sum goldRate and vayaj for the last day only
-  let totalGold = 0;
-  let totalVayaj = 0;
-  filteredTableData.forEach(row => {
-    // Check if this row is for the last date
-    if (
-      (row.sodDate && new Date(row.sodDate).toISOString().slice(0, 10) === lastDate) ||
-      (row.date && new Date(row.date).toISOString().slice(0, 10) === lastDate)
-    ) {
-      totalGold += marathiToNumber(row.goldRate);
-      totalVayaj += marathiToNumber(row.vayaj || 0);
-    }
-  });
+  // The closing balance for the month is the last calculated running balance.
+  const monthClosingBalance = currentRunningBalance;
 
   flatRows.push({
     type: 'month_end_summary',
-    amount: lastDayOpening + totalGold + totalVayaj
+    amount: monthClosingBalance
   });
 
   return flatRows;
 }, [filteredTableData, selectedMonth, settings.balanceAmount]);
+
+useEffect(() => {
+const summaryRow = groupedRows.find(row => row.type === 'month_end_summary');
+if (summaryRow && selectedShop && selectedMonth) {
+  saveClosingBalance(selectedShop, selectedMonth, summaryRow.amount);
+}
+}, [groupedRows, selectedShop, selectedMonth]);
 
   return (
     <Box sx={{ p: 3 }}>
