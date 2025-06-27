@@ -107,12 +107,12 @@ React.useEffect(() => {
           <title>भडवल खाते</title>
           <style>
             @page {
-              size: landscape;
-              margin: 15mm;
+              size: A4 landscape;
+              margin: 10mm;
             }
             body { 
               font-family: 'Noto Sans Devanagari', 'Devanagari', Arial, sans-serif;
-              padding: 20px;
+              padding: 8px;
               background-color: white;
             }
             .header {
@@ -122,30 +122,31 @@ React.useEffect(() => {
               padding-bottom: 10px;
             }
             .shop-name {
-              font-size: 32px !important;
+              font-size: 22px !important;
               font-weight: bold !important;
               margin-bottom: 5px;
               text-transform: uppercase;
             }
             .title {
-              font-size: 24px;
+              font-size: 16px;
               font-weight: bold;
               margin: 10px 0;
             }
             .subtitle {
-              font-size: 16px;
+              font-size: 12px;
               margin: 5px 0;
             }
             table { 
               border-collapse: collapse; 
               width: 100%;
-              margin-top: 20px;
+              margin-top: 10px;
+              table-layout: fixed;
             }
             th, td { 
               border: 1px solid #000; 
-              padding: 8px; 
-              text-align: center; 
-              font-size: 14px;
+              padding: 4px 2px;
+              text-align: center;
+              font-size: 11px;
             }
             th { 
               background: #f0f0f0;
@@ -159,7 +160,7 @@ React.useEffect(() => {
             .footer {
               margin-top: 20px;
               text-align: center;
-              font-size: 12px;
+              font-size: 10px;
               border-top: 1px solid #000;
               padding-top: 10px;
             }
@@ -311,54 +312,64 @@ React.useEffect(() => {
                   return a.date.localeCompare(b.date);
                 });
 
-                // 2. Process sorted transactions
-                flatRows.forEach((row, idx) => {
-                  let displayAmount = marathiToNumber(row.goldRate) || 0;
-                  let deposit = '';
-                  let withdrawal = '';
+                // Group transactions by month
+                const transactionsByMonth = {};
+                flatRows.forEach(row => {
+                  const monthKey = row.date ? row.date.slice(0, 7) : row.sodDate ? row.sodDate.slice(0, 7) : '';
+                  if (!transactionsByMonth[monthKey]) transactionsByMonth[monthKey] = [];
+                  transactionsByMonth[monthKey].push(row);
+                });
 
-                  if (row.type === 'deposit') {
-                    deposit = row.goldRate || '०';
-                    totalDeposit += displayAmount;
-                    runningBalance -= displayAmount; // Deposit decreases balance (as per user request)
-                    withdrawal = '०';
-                  } else if (row.type === 'withdrawal') {
-                    withdrawal = row.goldRate || '०';
-                    totalWithdrawal += displayAmount;
-                    runningBalance += displayAmount; // Withdrawal increases balance (as per user request)
-                    deposit = '०';
-                  }
+                let runningBalanceByMonth = runningBalance;
+                let lastMonthKey = null;
+                Object.entries(transactionsByMonth).forEach(([monthKey, monthRows], monthIdx) => {
+                  let monthDeposit = 0;
+                  let monthWithdrawal = 0;
+                  monthRows.forEach((row, idx) => {
+                    let displayAmount = marathiToNumber(row.goldRate) || 0;
+                    let deposit = '';
+                    let withdrawal = '';
 
+                    if (row.type === 'deposit') {
+                      deposit = row.goldRate || '०';
+                      monthDeposit += displayAmount;
+                      runningBalanceByMonth -= displayAmount;
+                      withdrawal = '०';
+                    } else if (row.type === 'withdrawal') {
+                      withdrawal = row.goldRate || '०';
+                      monthWithdrawal += displayAmount;
+                      runningBalanceByMonth += displayAmount;
+                      deposit = '०';
+                    }
+
+                    tableRows.push(
+                      <TableRow key={`${monthKey}-${row.date || row.sodDate}-${idx}`}>
+                        <TableCell align="center">{toMarathiDate(row.date || row.sodDate)}</TableCell>
+                        <TableCell align="center">{deposit}</TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center">{withdrawal}</TableCell>
+                        <TableCell align="center"></TableCell>
+                        <TableCell align="center">{toMarathiNumber(runningBalanceByMonth)}</TableCell>
+                      </TableRow>
+                    );
+                  });
+                  // Add bold line and total row after each month
                   tableRows.push(
-                    <TableRow key={`${row.date}-${idx}`}>
-                      <TableCell align="center">{toMarathiDate(row.date)}</TableCell>
-                      <TableCell align="center">{deposit}</TableCell>
+                    <TableRow key={`boldline-${monthKey}`}> 
+                      <TableCell colSpan={6} style={{ borderTop: '3px solid #000', padding: 0 }}></TableCell>
+                    </TableRow>
+                  );
+                  tableRows.push(
+                    <TableRow key={`total-${monthKey}`} sx={{ '& td': { fontWeight: 'bold', backgroundColor: '#f5f5f5' } }}>
+                      <TableCell align="center"><b>एकूण ({monthKey})</b></TableCell>
+                      <TableCell align="center"><b>{toMarathiNumber(monthDeposit)}</b></TableCell>
                       <TableCell align="center"></TableCell>
-                      <TableCell align="center">{withdrawal}</TableCell>
+                      <TableCell align="center"><b>{toMarathiNumber(monthWithdrawal)}</b></TableCell>
                       <TableCell align="center"></TableCell>
-                      <TableCell align="center">{toMarathiNumber(runningBalance)}</TableCell>
+                      <TableCell align="center"><b>{toMarathiNumber(runningBalanceByMonth)}</b></TableCell>
                     </TableRow>
                   );
                 });
-
-                // 3. Add total row
-                tableRows.push(
-                  <TableRow key="total" sx={{ 
-                    '& td': { 
-                      borderTop: '2px solid black',
-                      fontWeight: 'bold',
-                      backgroundColor: '#f5f5f5'
-                    }
-                  }}>
-                    <TableCell align="center">एकूण</TableCell>
-                    <TableCell align="center">{toMarathiNumber(totalDeposit)}</TableCell>
-                    <TableCell align="center"></TableCell>
-                    <TableCell align="center">{toMarathiNumber(totalWithdrawal)}</TableCell>
-                    <TableCell align="center"></TableCell>
-                    <TableCell align="center">{toMarathiNumber(runningBalance)}</TableCell>
-                  </TableRow>
-                );
-
                 return tableRows;
               })()}
             </TableBody>

@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 // import RefreshIcon from '@mui/icons-material/Refresh';
-import { getAllShops, getTableData, getShopSettings, updateClosingBalance, getClosingBalance, saveClosingBalance } from '../firebase/services';
+import { getAllShops, getTableData, getShopSettings, updateClosingBalance, getClosingBalance, saveClosingBalance, getAllCustomerTableRows } from '../firebase/services';
 import {  formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
 
 function Loans() {
@@ -63,9 +63,6 @@ useEffect(() => {
 
 useEffect(() => {
   if (selectedShop) {
-    setTableData([]);
-    setSettings({ balanceAmount: 0 });
-    setInitialShopSettings({ balanceAmount: 0 });
     const fetchSettings = async () => {
       try {
         const response = await getShopSettings(selectedShop);
@@ -124,11 +121,29 @@ const fetchTableData = async (shopName, month) => {
       }
     }
 
-    const currRes = await getTableData(shopName, month);
-    const combined = Array.isArray(currRes.data) ? currRes.data : [];
+    const allRowsRes = await getAllCustomerTableRows(shopName);
+    let allRows = Array.isArray(allRowsRes.data) ? allRowsRes.data : [];
+
+    const [selYear, selMonth] = month.split('-').map(Number);
+    const filteredRows = allRows.filter(row => {
+      if (!row) return false;
+      if (row.sodDate) {
+        const d = new Date(row.sodDate);
+        if (d.getFullYear() === selYear && (d.getMonth() + 1) === selMonth) {
+          return true;
+        }
+      }
+      if (row.date) {
+        const d = new Date(row.date);
+        if (d.getFullYear() === selYear && (d.getMonth() + 1) === selMonth) {
+          return true;
+        }
+      }
+      return false;
+    });
 
     setSettings(prev => ({ ...prev, balanceAmount: openingBalance }));
-    setTableData(combined);
+    setTableData(filteredRows);
 
   } catch (error) {
     console.error('Error fetching table data:', error);
@@ -501,8 +516,32 @@ const groupedRows = React.useMemo(() => {
 
   const flatRows = allDailyRows.flat();
 
-  // The closing balance for the month is the last calculated running balance.
-  const monthClosingBalance = currentRunningBalance;
+  // Find the last date in the month
+  const lastDate = sortedDates[sortedDates.length - 1];
+
+  // Get last day's opening balance
+  let lastDayOpening = 0;
+  for (const row of flatRows) {
+    if (row.type === 'purant_jama' && row.date === lastDate) {
+      lastDayOpening = row.jama.goldRate;
+      break;
+    }
+  }
+
+  // Sum goldRate and vayaj for the last day only
+  let totalGold = 0;
+  let totalVayaj = 0;
+  filteredTableData.forEach(row => {
+    if (
+      (row.sodDate && new Date(row.sodDate).toISOString().slice(0, 10) === lastDate) ||
+      (row.date && new Date(row.date).toISOString().slice(0, 10) === lastDate)
+    ) {
+      totalGold += marathiToNumber(row.goldRate);
+      totalVayaj += marathiToNumber(row.vayaj || 0);
+    }
+  });
+
+  const monthClosingBalance = lastDayOpening + totalGold + totalVayaj;
 
   flatRows.push({
     type: 'month_end_summary',

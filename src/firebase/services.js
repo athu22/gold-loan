@@ -441,4 +441,35 @@ export const getClosingBalance = async (shopName, month) => {
   }
 };
 
+export const getAllCustomerTableRows = async (shopName) => {
+  try {
+    if (!shopName) {
+      return { success: false, error: 'दुकान नाव आवश्यक आहे', data: [] };
+    }
+    const shopKey = shopName.toLowerCase().replace(/\s+/g, '_');
+    const tableRef = ref(database, `shops/${shopKey}/customerTable`);
+    const snapshot = await get(tableRef);
+    let allRows = [];
+    if (snapshot.exists()) {
+      const monthsData = snapshot.val();
+      Object.values(monthsData).forEach(monthData => {
+        if (Array.isArray(monthData)) {
+          allRows = allRows.concat(monthData);
+        } else if (typeof monthData === 'object' && monthData !== null) {
+          // If stored as an object (not array), ignore closingAmount and flatten
+          allRows = allRows.concat(
+            Object.entries(monthData)
+              .filter(([k]) => k !== 'closingAmount')
+              .map(([, v]) => v)
+          );
+        }
+      });
+    }
+    return { success: true, data: allRows };
+  } catch (error) {
+    console.error('Error getting all customer table rows:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
 

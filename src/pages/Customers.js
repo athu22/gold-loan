@@ -363,7 +363,7 @@ function Customers() {
 
   const handlePrint = () => {
     const headings = [
-      'अ क्र', 'खाते क्र', 'पावती क्र', 'दिनांक', 'नावं', 'वस्तू', 'रुपये', 'सोड दि', 'दिवस', 'सो पा क्र', 'व्याज', 'पत्ता', 'ठेवी', 'काढ', 'सही'
+      'अ क्र', 'खाते क्र', 'पावती क्र', 'दिनांक', 'नावं', 'वस्तू', 'रुपये', 'सोड दि', 'दिवस', 'सो पा क्र', 'व्याज', 'पत्ता', 'की पा', 'ख पा', 'सही'
     ];
 
     const printContent = `
@@ -372,7 +372,10 @@ function Customers() {
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
             <tr>
-              ${headings.map(h => `<th style="border: 1px solid #000; padding: 4px; text-align: center;">${h}</th>`).join('')}
+              ${headings.map(h => h === 'सही'
+                ? `<th style="border: 1px solid #000; padding: 4px; text-align: center; width: 120px; min-width: 120px;">${h}</th>`
+                : `<th style="border: 1px solid #000; padding: 4px; text-align: center;">${h}</th>`
+              ).join('')}
             </tr>
           </thead>
           <tbody>
@@ -390,11 +393,22 @@ function Customers() {
                 <td style="border: 1px solid #000; padding: 4px; text-align: center;">${row.moparu || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: right;">${row.vayaj || ''}</td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: left;">${row.address || ''}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;"></td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center; width: 120px; min-width: 120px;"></td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: center;"></td>
                 <td style="border: 1px solid #000; padding: 4px; text-align: center;"></td>
               </tr>
             `).join('')}
+            <tr>
+              <td colspan="6" style="font-weight:bold; background:#f5f5f5; text-align:center;">एकूण</td>
+              <td style="font-weight:bold; background:#f5f5f5; text-align:right;">${toMarathiNumber(rows.reduce((sum, row) => sum + marathiToNumber(row.goldRate), 0))}</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td style="font-weight:bold; background:#f5f5f5; text-align:right;">${toMarathiNumber(rows.reduce((sum, row) => sum + marathiToNumber(row.vayaj), 0))}</td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -435,37 +449,23 @@ function Customers() {
     const daysNum = parseInt(String(days).replace(/[^\d]/g, ''));
     const interestRate = parseFloat(settings.interestRate) || 2.5;
 
-    console.log('Interest Calculation Details:', {
-      मुदल_मराठी: amount,
-      मुदल_संख्या: principal,
-      दिवस: daysNum,
-      व्याज_दर: interestRate,
-      सूत्र: '(मुदल * व्याज_दर * दिवस) / (100 * 365)',
-      गणना: `(${principal} * ${interestRate} * ${daysNum}) / (100 * 365)`,
-      व्याज: (principal * interestRate * daysNum) / (100 * 365)
-    });
-
     if (isNaN(principal) || isNaN(daysNum) || isNaN(interestRate)) {
-      console.log('Invalid values for interest calculation:', {
-        मुदल: principal,
-        दिवस: daysNum,
-        व्याज_दर: interestRate
-      });
       return '०';
     }
 
     // Calculate interest: (Principal * Rate * Days) / (100 * 365)
-    const interest = (principal * interestRate * daysNum) / (100 * 365);
-    
-    // Format the interest to 2 decimal places and convert to Marathi numerals
-    const formattedInterest = toMarathiNumber(interest.toFixed(2));
-    
-    console.log('Final Interest:', {
-      कच्चा_व्याज: interest,
-      फॉर्मेटेड_व्याज: formattedInterest
-    });
+    let interest = (principal * interestRate * daysNum) / (100 * 365);
 
-    return formattedInterest;
+    // Custom rounding: >= 0.5 round up, < 0.5 round down
+    const decimal = interest - Math.floor(interest);
+    if (decimal >= 0.5) {
+      interest = Math.ceil(interest);
+    } else {
+      interest = Math.floor(interest);
+    }
+
+    // Convert to Marathi numerals
+    return toMarathiNumber(interest);
   };
 
   const handleCellChange = (index, field, value) => {
@@ -844,7 +844,7 @@ function Customers() {
                             fullWidth
                           />
                         </TableCell>
-                        <TableCell align="center">
+                        <TableCell align="center" sx={{ minWidth: 180, maxWidth: 300 }}>
                           <TextField
                             value={row.signature}
                             onChange={e => handleCellChange(idx, 'signature', e.target.value)}
