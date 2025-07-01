@@ -599,6 +599,8 @@ function Customers() {
     }
   };
 
+  const maxMoparu = Math.max(...rows.map(row => marathiToNumber(row.moparu || 0)));
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header Section */}
@@ -740,6 +742,7 @@ function Customers() {
                   {rows.map((row, idx) => {
                     if (!row) return null; // Skip undefined/null rows
                     const goldRateNum = parseFloat(row.goldRate) > 0 ? parseFloat(row.goldRate) : marathiToNumber(row.goldRate);
+                    const isMaxMoparu = marathiToNumber(row.moparu) === maxMoparu && maxMoparu !== 0;
                     return (
                       <TableRow key={idx}>
                         <TableCell align="center">{toMarathiNumber(idx + 1)}</TableCell>
@@ -827,6 +830,7 @@ function Customers() {
                             value={row.moparu}
                             onChange={e => handleCellChange(idx, 'moparu', e.target.value)}
                             variant="standard"
+                            className={isMaxMoparu ? 'blink' : ''}
                           />
                         </TableCell>
                         <TableCell align="center">

@@ -339,58 +339,58 @@ const handlePrint = () => {
   };
 };
 
-// Add this function to convert numbers to Marathi words
+// Improved Marathi number to words (0-99 full mapping)
 function numberToMarathiWords(num) {
   if (!num || isNaN(num)) return '';
-  
-  const ones = ['', 'एक', 'दोन', 'तीन', 'चार', 'पाच', 'सहा', 'सात', 'आठ', 'नऊ', 'दहा',
-    'अकरा', 'बारा', 'तेरा', 'चौदा', 'पंधरा', 'सोळा', 'सतरा', 'अठरा', 'एकोणीस', 'वीस'];
-  const tens = ['', '', 'वीस', 'तीस', 'चाळीस', 'पन्नास', 'साठ', 'सत्तर', 'ऐंशी', 'नव्वद'];
-  const hundreds = ['', 'शंभर', 'दोनशे', 'तीनशे', 'चारशे', 'पाचशे', 'सहाशे', 'सातशे', 'आठशे', 'नऊशे'];
-  const thousands = ['', 'हजार', 'लाख', 'कोटी'];
-
-  if (num === 0) return 'शून्य';
-
+  const marathiNumbers = [
+    'शून्य','एक','दोन','तीन','चार','पाच','सहा','सात','आठ','नऊ','दहा',
+    'अकरा','बारा','तेरा','चौदा','पंधरा','सोळा','सतरा','अठरा','एकोणीस','वीस',
+    'एकवीस','बावीस','तेवीस','चोवीस','पंचवीस','सव्वीस','सत्तावीस','अठावीस','एकोणतीस','तीस',
+    'एकतीस','बत्तीस','तेहतीस','चौतीस','पस्तीस','छत्तीस','सदतीस','अडतीस','एकोणचाळीस','चाळीस',
+    'एक्केचाळीस','बेचाळीस','त्रेचाळीस','चव्वेचाळीस','पंचेचाळीस','सेहेचाळीस','सत्तेचाळीस','अठेचाळीस','एकोणपन्नास','पन्नास',
+    'एक्कावन्न','बावन्न','त्रेपन्न','चोपन्न','पंचावन्न','छप्पन्न','सत्तावन्न','अठ्ठावन्न','एकोणसाठ','साठ',
+    'एकसष्ठ','बासष्ठ','त्रेसष्ठ','चौसष्ठ','पासष्ठ','सहासष्ठ','सदुसष्ठ','अडुसष्ठ','एकोणसत्तर','सत्तर',
+    'एक्काहत्तर','बाहत्तर','त्र्याहत्तर','चौर्‍याहत्तर','पंच्याहत्तर','शहात्तर','सत्त्याहत्तर','अठ्ठ्याहत्तर','एकोणऐंशी','ऐंशी',
+    'एक्क्याऐंशी','ब्याऐंशी','त्र्याऐंशी','चौर्‍याऐंशी','पंच्याऐंशी','शहाऐंशी','सत्त्याऐंशी','अठ्ठ्याऐंशी','एकोणनव्वद','नव्वद',
+    'एक्क्याण्णव','ब्याण्णव','त्र्याण्णव','चौर्‍याण्णव','पंच्याण्णव','शहाण्णव','सत्त्याण्णव','अठ्ठ्याण्णव','नव्व्याण्णव','शंभर'
+  ];
   let words = '';
   let decimal = '';
-
-  // Handle decimal part
   if (num.toString().includes('.')) {
     const parts = num.toString().split('.');
     num = parseInt(parts[0]);
     decimal = parts[1];
   }
-
-  // Convert to words
-  if (num >= 10000000) {
-    words += numberToMarathiWords(Math.floor(num / 10000000)) + ' कोटी ';
-    num %= 10000000;
+  if (num <= 100) {
+    words = marathiNumbers[num];
+  } else {
+    // For numbers > 100, use the old logic for hundreds/thousands/lakhs/crores
+    const hundreds = ['', 'शंभर', 'दोनशे', 'तीनशे', 'चारशे', 'पाचशे', 'सहाशे', 'सातशे', 'आठशे', 'नऊशे'];
+    const thousands = ['', 'हजार', 'लाख', 'कोटी'];
+    let n = num;
+    if (n >= 10000000) {
+      words += numberToMarathiWords(Math.floor(n / 10000000)) + ' कोटी ';
+      n %= 10000000;
+    }
+    if (n >= 100000) {
+      words += numberToMarathiWords(Math.floor(n / 100000)) + ' लाख ';
+      n %= 100000;
+    }
+    if (n >= 1000) {
+      words += numberToMarathiWords(Math.floor(n / 1000)) + ' हजार ';
+      n %= 1000;
+    }
+    if (n >= 100) {
+      words += hundreds[Math.floor(n / 100)] + ' ';
+      n %= 100;
+    }
+    if (n > 0) {
+      words += numberToMarathiWords(n);
+    }
   }
-  if (num >= 100000) {
-    words += numberToMarathiWords(Math.floor(num / 100000)) + ' लाख ';
-    num %= 100000;
-  }
-  if (num >= 1000) {
-    words += numberToMarathiWords(Math.floor(num / 1000)) + ' हजार ';
-    num %= 1000;
-  }
-  if (num >= 100) {
-    words += hundreds[Math.floor(num / 100)] + ' ';
-    num %= 100;
-  }
-  if (num >= 20) {
-    words += tens[Math.floor(num / 10)] + ' ';
-    num %= 10;
-  }
-  if (num > 0) {
-    words += ones[num] + ' ';
-  }
-
-  // Add decimal part if exists
   if (decimal) {
-    words += 'दशांश ' + decimal;
+    words += ' दशांश ' + decimal;
   }
-
   return words.trim();
 }
 

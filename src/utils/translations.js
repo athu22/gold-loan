@@ -284,9 +284,9 @@ export const toMarathiName = (name) => {
 
 // Format currency in Marathi
 export const formatMarathiCurrency = (amount) => {
-  if (!amount) return '₹०';
+  if (!amount) return '०';
   const formattedAmount = toMarathiNumber(amount.toString());
-  return `₹${formattedAmount}`;
+  return formattedAmount;
 };
 
 // Format date in Marathi

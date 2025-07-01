@@ -54,3 +54,13 @@
   background: #f2f2f2;
   font-weight: bold;
 }
+
+.blink {
+  animation: blink-animation 1s steps(2, start) infinite;
+}
+
+@keyframes blink-animation {
+  to {
+    visibility: hidden;
+  }
+}

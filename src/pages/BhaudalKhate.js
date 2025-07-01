@@ -369,6 +369,11 @@ React.useEffect(() => {
                       <TableCell align="center"><b>{toMarathiNumber(runningBalanceByMonth)}</b></TableCell>
                     </TableRow>
                   );
+                  tableRows.push(
+                    <TableRow key={`boldline-after-total-${monthKey}`}> 
+                      <TableCell colSpan={6} style={{ borderTop: '3px solid #000', padding: 0 }}></TableCell>
+                    </TableRow>
+                  );
                 });
                 return tableRows;
               })()}
