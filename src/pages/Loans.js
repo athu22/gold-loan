@@ -189,6 +189,17 @@ const handlePrint = () => {
   // Marathi sentence to show
   const marathiSentence = 'महाराष्ट्र सावकारी (नियमाना) अधिनियम २०१४ नमुना नं-६ व नं-७ नियम १८ पहा.';
 
+  const selectedMonthDisplay = (() => {
+  const [year, month] = selectedMonth.split('-');
+  // Marathi months
+  const marathiMonths = [
+    'जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून',
+    'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'
+  ];
+  return `${marathiMonths[parseInt(month, 10) - 1]} ${year}`;
+})();
+  
+
   // Create a new window for printing
   const printWindow = window.open('', '_blank');
   printWindow.document.write(`
@@ -317,6 +328,7 @@ const handlePrint = () => {
         <div class="print-header">
           <div style="width:100%">
             <div class="shop-name">${selectedShop},${shopAddress}</div>
+                      <div style="text-align:center;font-size:13px;font-weight:bold;">महिना: ${selectedMonthDisplay}</div>
             <div class="main-title">रोज किर्द  कैश बुक</div>
           </div>
           <div class="marathi-sentence">${marathiSentence}</div>
@@ -702,6 +714,7 @@ if (summaryRow && selectedShop && selectedMonth) {
                               {jamaEntry.item ? ` जमा त्या पोटी ठेवलेले  ${jamaEntry.item}` : ''}
                               {jamaEntry.sodDate ? ` सोडवले ` : ''}
                               {jamaEntry.pavtiNo ? ` सोडपावती क्र. ${jamaEntry.pavtiNo}` : ''}
+                              {jamaEntry.checkNo ? `(चेक क्र. ${jamaEntry.checkNo})` : ''}
                             </>
                           ) : ''}
                         </TableCell>
@@ -716,6 +729,7 @@ if (summaryRow && selectedShop && selectedMonth) {
                               श्री {sodEntry.name} यांचे नावे {numberToMarathiWords(marathiToNumber(sodEntry.goldRate))} रुपये 
                               {sodEntry.item ? ` मात्र त्यापोटी सोने ${sodEntry.item} ठेवले.` : ''}
                               {sodEntry.moparu ? ` ठेव पावती क्र. ${sodEntry.moparu}` : ''}
+                              {sodEntry.checkNo ? ` (चेक क्र. ${sodEntry.checkNo})` : ''}
                             </>
                           ) : ''}
                         </TableCell>

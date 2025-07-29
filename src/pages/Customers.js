@@ -44,10 +44,22 @@ import {
   LocationOn as LocationOnIcon,
   Badge as BadgeIcon,
   Save as SaveIcon,
+  ContentCopy as ContentCopyIcon,
+  ContentPaste as ContentPasteIcon,
 } from '@mui/icons-material';
 import { addCustomer,  updateCustomer, deleteCustomer,  getAllShops, saveTableData, getTableData, getShopSettings } from '../firebase/services';
 import { translations, toMarathiName } from '../utils/translations';
 import MarathiTransliterator from '../components/MarathiTransliterator';
+
+const blinkStyle = {
+  animation: 'blinker 1s linear infinite',
+};
+
+const blinkKeyframes = `
+@keyframes blinker {
+  50% { opacity: 0; }
+}
+`;
 
 function Customers() {
   const theme = useTheme();
@@ -81,6 +93,26 @@ function Customers() {
     const [yyyy, mm, dd] = dateStr.split('-');
     const formatted = [dd, mm, yyyy].join('/');
     return formatted.replace(/\d/g, d => '०१२३४५६७८९'[d]);
+  }
+
+  function fromMarathiDate(dateStr) {
+    if (!dateStr) return '';
+    // Check if it's already in the standard yyyy-mm-dd format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return dateStr;
+    }
+
+    // Otherwise, assume Marathi dd/mm/yyyy and convert
+    const englishDigitsStr = String(dateStr).replace(/[०१२३४५६७८९]/g, d => '०१२३४५६७८९'.indexOf(d));
+    const parts = englishDigitsStr.split('/');
+    if (parts.length !== 3) return ''; // Return empty if format is not dd/mm/yyyy
+    
+    let [dd, mm, yyyy] = parts;
+    
+    // Ensure parts are valid numbers before padding
+    if (isNaN(parseInt(dd)) || isNaN(parseInt(mm)) || isNaN(parseInt(yyyy))) return '';
+
+    return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
   }
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -377,8 +409,8 @@ function Customers() {
     ];
 
     const printContent = `
-      <div style="padding: 20px;">
-        <h2 style="text-align: center; margin-bottom: 20px;">${toMarathiName(selectedShop)}</h2>
+      <div style="padding: 0;">
+        <h2 class="print-title" style="text-align: center; margin: 0 0 10px 0;">${toMarathiName(selectedShop)}</h2>
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
             <tr>
@@ -424,8 +456,24 @@ function Customers() {
       </div>
       <style>
         @media print {
-          body { margin: 0; }
-          table { page-break-inside: avoid; }
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .print-title {
+            margin-top: 0 !important;
+            margin-bottom: 0.5em !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            font-size: 10px !important;
+          }
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          tr { page-break-inside: avoid; break-inside: avoid; }
         }
       </style>
     `;
@@ -445,6 +493,142 @@ function Customers() {
     printWindow.print();
     printWindow.close();
   };
+
+  const handleCopy = () => {
+    if (rows.length === 0 || (rows.length === 1 && !rows[0].date && !rows[0].name)) {
+      setSnackbar({ open: true, message: 'कॉपी करण्यासाठी डेटा नाही', severity: 'warning' });
+      return;
+    }
+
+    const tsvContent = [
+      headings.join('\t'),
+      ...rows.filter(row => row && (row.date || row.sodDate)).map((row, idx) => [
+        toMarathiNumber(idx + 1),
+        row.accountNo || '',
+        row.pavtiNo || '',
+        toMarathiDate(row.date || ''),
+        row.name || '',
+        row.item || '',
+        row.goldRate || '',
+        toMarathiDate(row.sodDate || ''),
+        toMarathiNumber(row.divas || ''),
+        row.moparu || '',
+        row.vayaj || '',
+        row.address || '',
+        row.signature || '',
+      ].join('\t'))
+    ].join('\n');
+
+    navigator.clipboard.writeText(tsvContent).then(() => {
+      setSnackbar({ open: true, message: 'टेबल डेटा यशस्वीरित्या कॉपी झाला!', severity: 'success' });
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      setSnackbar({ open: true, message: 'डेटा कॉपी करताना त्रुटी आली', severity: 'error' });
+    });
+  };
+
+// ...existing code...
+const handlePaste = async () => {
+  if (!selectedShop) {
+    setSnackbar({ open: true, message: 'कृपया आधी दुकान निवडा', severity: 'warning' });
+    return;
+  }
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text) {
+      setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+      return;
+    }
+
+    // Detect separator: tab or comma
+    const sep = text.includes('\t') ? '\t' : ',';
+    const lines = text.trim().split('\n');
+    if (lines.length === 0) {
+      setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+      return;
+    }
+
+    // Parse header row and build column index map
+    const header = lines[0].split(sep).map(h => h.trim().replace(/"/g, ''));
+    // Table columns in your order
+    const tableColumns = [
+      'accountNo', 'pavtiNo', 'date', 'name', 'item', 'goldRate', 'sodDate', 'divas', 'moparu', 'vayaj', 'address', 'signature'
+    ];
+    // Possible header names for each column
+    const headerMap = {
+      accountNo: ['accountNo', 'खातेक्र', 'खाते क्र'],
+      pavtiNo: ['pavtiNo', 'पावतीक्र', 'पावती क्र'],
+      date: ['date', 'दिनांक'],
+      name: ['name', 'नावं', 'नाव'],
+      item: ['item', 'वस्तू'],
+      goldRate: ['goldRate', 'रुपये', 'रक्कम'],
+      sodDate: ['sodDate', 'सोडदि', 'सोड दि'],
+      divas: ['divas', 'दिवस'],
+      moparu: ['moparu', 'सोपा क्र', 'सो पा क्र'],
+      vayaj: ['vayaj', 'व्याज'],
+      address: ['address', 'पत्ता'],
+      signature: ['signature', 'सही'],
+    };
+    // Find column index for each table column
+    const colMap = {};
+    tableColumns.forEach(col => {
+      colMap[col] = header.findIndex(h =>
+        headerMap[col].some(name =>
+          h.replace(/\s/g, '').toLowerCase().includes(name.replace(/\s/g, '').toLowerCase())
+        )
+      );
+    });
+
+    // Remove header
+    const dataLines = lines.slice(1);
+    if (dataLines.length === 0) {
+      setSnackbar({ open: true, message: 'पेस्ट करण्यासाठी डेटा आढळला नाही (फक्त हेडर वगळून).', severity: 'warning' });
+      return;
+    }
+
+    const pastedRows = dataLines.map(line => {
+      const columns = line.replace(/"/g, '').split(sep);
+      const row = { ...emptyRow };
+      tableColumns.forEach(col => {
+        if (colMap[col] !== -1) {
+          let val = columns[colMap[col]] || '';
+          // Convert dates if needed
+          if (col === 'date' || col === 'sodDate') val = fromMarathiDate(val);
+          row[col] = val;
+        }
+      });
+      return row;
+    }).filter(row => Object.values(row).some(val => val)); // Only keep non-empty rows
+
+    if (pastedRows.length === 0) {
+      setSnackbar({ open: true, message: 'पेस्ट करण्यासाठी वैध पंक्ती आढळल्या नाहीत. स्तंभ जुळत असल्याची खात्री करा.', severity: 'error' });
+      return;
+    }
+
+    // Update existing rows, add new if needed
+    setRows(prevRows => {
+      const updated = [...prevRows];
+      for (let i = 0; i < pastedRows.length; i++) {
+        if (i < updated.length) {
+          updated[i] = { ...updated[i], ...pastedRows[i] };
+        } else {
+          updated.push({ ...pastedRows[i] });
+        }
+      }
+      return updated;
+    });
+    setSnackbar({ open: true, message: 'टेबल डेटा यशस्वीरित्या पेस्ट झाला!', severity: 'success' });
+
+  } catch (err) {
+    console.error('Failed to paste:', err);
+    if (err.name === 'NotAllowedError') {
+      setSnackbar({ open: true, message: 'क्लिपबोर्डवरून पेस्ट करण्याची परवानगी नाकारली', severity: 'error' });
+    } else {
+      setSnackbar({ open: true, message: 'डेटा पेस्ट करताना त्रुटी आली', severity: 'error' });
+    }
+  }
+};
+
 
   // Helper to convert Marathi numerals to regular numbers
   function marathiToNumber(str) {
@@ -686,8 +870,18 @@ function Customers() {
     setCheckNoInput('');
   };
 
+  // Before the return statement, find the max moparu value (as number)
+  const maxMoparu = Math.max(
+    ...rows.map(row => {
+      const val = row && row.moparu ? marathiToNumber(row.moparu) : 0;
+      return isNaN(val) ? 0 : val;
+    })
+  );
+
   return (
     <Box sx={{ p: 3 }}>
+      {/* Inject keyframes for blinking */}
+      <style>{blinkKeyframes}</style>
       {/* Header Section */}
       <Box sx={{ 
         display: 'flex', 
@@ -775,6 +969,28 @@ function Customers() {
               sx={{ color: theme.palette.primary.main, '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) } }}
             >
               <PrintIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="कॉपी करा">
+          <span>
+            <IconButton
+              onClick={handleCopy}
+              disabled={!selectedShop || rows.length === 0}
+              sx={{ color: theme.palette.success.main, '&:hover': { backgroundColor: alpha(theme.palette.success.main, 0.1) } }}
+            >
+              <ContentCopyIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="पेस्ट करा">
+          <span>
+            <IconButton
+              onClick={handlePaste}
+              disabled={!selectedShop}
+              sx={{ color: theme.palette.warning.main, '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) } }}
+            >
+              <ContentPasteIcon />
             </IconButton>
           </span>
         </Tooltip>
@@ -915,6 +1131,10 @@ function Customers() {
                             value={row.moparu}
                             onChange={e => handleCellChange(idx, 'moparu', e.target.value)}
                             variant="standard"
+                            // Add blinking style if this is the max
+                            InputProps={{
+                              style: marathiToNumber(row.moparu) === maxMoparu && maxMoparu > 0 ? blinkStyle : undefined,
+                            }}
                           />
                         </TableCell>
                         <TableCell align="center">
