@@ -17,7 +17,7 @@ function getLoanYearAndPeriod(selectedMonth) {
 
   return {
     loanYear: `${startYear}-${String(endYear).slice(-2)}`,
-    period: `01/06/${startYear} ते 30/04/${endYear}`,
+    period: `01/04/${startYear} ते 31/03/${endYear}`,
     startYear,
     endYear,
   };
@@ -104,7 +104,7 @@ React.useEffect(() => {
     win.document.write(`
       <html>
         <head>
-          <title>भडवल खाते</title>
+          <title>भडवल खाते - ${selectedShop}</title>
           <style>
             @page {
               size: A4 landscape;

@@ -133,7 +133,7 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
       {customer.duringPrincipal || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
-      {customer.duringInterest || '०'}
+      {customer.goldRate || '०'}
     </TableCell>
     <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
       {customer.due || '०'}
@@ -155,14 +155,14 @@ function PrintableReport({ filteredReports, displayedCustomers, period, toMarath
   <TableCell align="center" sx={{ border: '1px solid #000', background: '#fff', fontSize: 14 }}>
     {customer.sodDate ? (
       <Box sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '24px',
-        height: '24px',
-        borderRadius: '50%',
-        border: '1px solid #000',
-        fontSize: '14px'
+        display: 'inline-flex !important',
+        alignItems: 'center !important',
+        justifyContent: 'center !important',
+        width: '24px !important',
+        height: '24px !important',
+        borderRadius: '50% !important',
+        border: '1px solid #000 !important',
+        fontSize: '14px !important'
       }}>
         {customer.pavtiNo || '०'}
       </Box>
@@ -226,7 +226,7 @@ function getLoanYearAndPeriod(selectedMonth) {
   const endYear = startYear + 1;
   return {
     loanYear: `${startYear}-${String(endYear).slice(-2)}`,
-    period: `01/06/${startYear} ते 30/04/${endYear}`,
+    period: `01/04/${startYear} ते 31/03/${endYear}`,
     startYear,
     endYear,
   };
@@ -320,7 +320,7 @@ const handlePrint = () => {
   printWindow.document.write(`
     <html>
       <head>
-        <title>Print</title>
+        <title>Report - ${selectedShop}</title>
         <style>
           body {
             margin: 0;
@@ -409,6 +409,7 @@ const handlePrint = () => {
               font-weight: bold !important;
               margin: 10px 0 !important;
             }
+
           }
         </style>
       </head>

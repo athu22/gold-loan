@@ -46,6 +46,7 @@ import {
   Save as SaveIcon,
   ContentCopy as ContentCopyIcon,
   ContentPaste as ContentPasteIcon,
+  DragIndicator as DragIndicatorIcon,
 } from '@mui/icons-material';
 import { addCustomer,  updateCustomer, deleteCustomer,  getAllShops, saveTableData, getTableData, getShopSettings } from '../firebase/services';
 import { translations, toMarathiName } from '../utils/translations';
@@ -162,6 +163,11 @@ function Customers() {
   // Add state for check number dialog
   const [checkDialog, setCheckDialog] = useState({ open: false, rowIdx: null });
   const [checkNoInput, setCheckNoInput] = useState('');
+
+  // Add state for row preview dialog
+  const [previewDialog, setPreviewDialog] = useState({ open: false, rowIdx: null, data: null });
+  const [previewData, setPreviewData] = useState({});
+  const [draggedItem, setDraggedItem] = useState(null);
 
   const columns = [
     { 
@@ -408,9 +414,19 @@ function Customers() {
       'अ क्र', 'खाते क्र', 'पावती क्र', 'दिनांक', 'नावं', 'वस्तू', 'रुपये', 'सोड दि', 'दिवस', 'सो पा क्र', 'व्याज', 'पत्ता', 'की पा', 'ख पा', 'सही'
     ];
 
+    const marathiMonths = ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'];
+    let monthDisplay = '';
+    if (selectedMonth) {
+      const [year, month] = selectedMonth.split('-');
+      const monthIdx = parseInt(month, 10) - 1;
+      if (monthIdx >= 0 && monthIdx < 12) {
+        monthDisplay = `महिना: ${marathiMonths[monthIdx]} ${toMarathiNumber(year)}`;
+      }
+    }
     const printContent = `
       <div style="padding: 0;">
         <h2 class="print-title" style="text-align: center; margin: 0 0 10px 0;">${toMarathiName(selectedShop)}</h2>
+         <div style="text-align: center; font-size: 20px; margin-bottom: 10px;">${monthDisplay}</div>
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
             <tr>
@@ -482,6 +498,7 @@ function Customers() {
     printWindow.document.write(`
       <html>
         <head>
+        <title>Customers - ${selectedShop}</title>
         </head>
         <body>
           ${printContent}
@@ -495,140 +512,336 @@ function Customers() {
   };
 
   const handleCopy = () => {
-    if (rows.length === 0 || (rows.length === 1 && !rows[0].date && !rows[0].name)) {
-      setSnackbar({ open: true, message: 'कॉपी करण्यासाठी डेटा नाही', severity: 'warning' });
+    setSnackbar({ open: true, message: 'कृपया कॉपी करण्यासाठी पंक्ती निवडा', severity: 'info' });
+  };
+
+  const handleCopyRow = (rowIndex) => {
+    const row = rows[rowIndex];
+    if (!row || (!row.date && !row.sodDate)) {
+      setSnackbar({ open: true, message: 'कॉपी करण्यासाठी वैध पंक्ती नाही', severity: 'warning' });
       return;
     }
 
-    const tsvContent = [
-      headings.join('\t'),
-      ...rows.filter(row => row && (row.date || row.sodDate)).map((row, idx) => [
-        toMarathiNumber(idx + 1),
-        row.accountNo || '',
-        row.pavtiNo || '',
-        toMarathiDate(row.date || ''),
-        row.name || '',
-        row.item || '',
-        row.goldRate || '',
-        toMarathiDate(row.sodDate || ''),
-        toMarathiNumber(row.divas || ''),
-        row.moparu || '',
-        row.vayaj || '',
-        row.address || '',
-        row.signature || '',
-      ].join('\t'))
-    ].join('\n');
+    const rowData = [
+      row.accountNo || '',
+      row.pavtiNo || '',
+      toMarathiDate(row.date || ''),
+      row.name || '',
+      row.item || '',
+      row.goldRate || '',
+      toMarathiDate(row.sodDate || ''),
+      toMarathiNumber(row.divas || ''),
+      row.moparu || '',
+      row.vayaj || '',
+      row.address || '',
+      row.signature || '',
+    ].join('\t');
 
-    navigator.clipboard.writeText(tsvContent).then(() => {
-      setSnackbar({ open: true, message: 'टेबल डेटा यशस्वीरित्या कॉपी झाला!', severity: 'success' });
+    navigator.clipboard.writeText(rowData).then(() => {
+      setSnackbar({ open: true, message: `पंक्ती ${rowIndex + 1} यशस्वीरित्या कॉपी झाली!`, severity: 'success' });
     }).catch(err => {
-      console.error('Failed to copy: ', err);
-      setSnackbar({ open: true, message: 'डेटा कॉपी करताना त्रुटी आली', severity: 'error' });
+      console.error('Failed to copy row: ', err);
+      setSnackbar({ open: true, message: 'पंक्ती कॉपी करताना त्रुटी आली', severity: 'error' });
     });
   };
 
-// ...existing code...
-const handlePaste = async () => {
-  if (!selectedShop) {
-    setSnackbar({ open: true, message: 'कृपया आधी दुकान निवडा', severity: 'warning' });
-    return;
-  }
-  try {
-    const text = await navigator.clipboard.readText();
-    if (!text) {
-      setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+  const handlePreviewRow = (rowIndex) => {
+    const row = rows[rowIndex];
+    if (!row) {
+      setSnackbar({ open: true, message: 'प्रीव्ह्यू करण्यासाठी वैध पंक्ती नाही', severity: 'warning' });
       return;
     }
 
-    // Detect separator: tab or comma
-    const sep = text.includes('\t') ? '\t' : ',';
-    const lines = text.trim().split('\n');
-    if (lines.length === 0) {
-      setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
-      return;
-    }
-
-    // Parse header row and build column index map
-    const header = lines[0].split(sep).map(h => h.trim().replace(/"/g, ''));
-    // Table columns in your order
-    const tableColumns = [
-      'accountNo', 'pavtiNo', 'date', 'name', 'item', 'goldRate', 'sodDate', 'divas', 'moparu', 'vayaj', 'address', 'signature'
-    ];
-    // Possible header names for each column
-    const headerMap = {
-      accountNo: ['accountNo', 'खातेक्र', 'खाते क्र'],
-      pavtiNo: ['pavtiNo', 'पावतीक्र', 'पावती क्र'],
-      date: ['date', 'दिनांक'],
-      name: ['name', 'नावं', 'नाव'],
-      item: ['item', 'वस्तू'],
-      goldRate: ['goldRate', 'रुपये', 'रक्कम'],
-      sodDate: ['sodDate', 'सोडदि', 'सोड दि'],
-      divas: ['divas', 'दिवस'],
-      moparu: ['moparu', 'सोपा क्र', 'सो पा क्र'],
-      vayaj: ['vayaj', 'व्याज'],
-      address: ['address', 'पत्ता'],
-      signature: ['signature', 'सही'],
+    const previewRowData = {
+      accountNo: row.accountNo || '',
+      pavtiNo: row.pavtiNo || '',
+      date: toDDMMYYYY(row.date || ''),
+      name: row.name || '',
+      item: row.item || '',
+      goldRate: row.goldRate || '',
+      sodDate: toDDMMYYYY(row.sodDate || ''),
+      divas: row.divas || '',
+      moparu: row.moparu || '',
+      vayaj: row.vayaj || '',
+      address: row.address || '',
+      signature: row.signature || '',
     };
-    // Find column index for each table column
-    const colMap = {};
-    tableColumns.forEach(col => {
-      colMap[col] = header.findIndex(h =>
-        headerMap[col].some(name =>
-          h.replace(/\s/g, '').toLowerCase().includes(name.replace(/\s/g, '').toLowerCase())
-        )
-      );
-    });
 
-    // Remove header
-    const dataLines = lines.slice(1);
-    if (dataLines.length === 0) {
-      setSnackbar({ open: true, message: 'पेस्ट करण्यासाठी डेटा आढळला नाही (फक्त हेडर वगळून).', severity: 'warning' });
+    setPreviewData(previewRowData);
+    setPreviewDialog({ open: true, rowIdx: rowIndex, data: previewRowData });
+  };
+
+  const handlePaste = async () => {
+    setSnackbar({ open: true, message: 'कृपया पेस्ट करण्यासाठी पंक्ती निवडा', severity: 'info' });
+  };
+
+  const handlePasteRow = async (rowIndex) => {
+    if (!selectedShop) {
+      setSnackbar({ open: true, message: 'कृपया आधी दुकान निवडा', severity: 'warning' });
       return;
     }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+        return;
+      }
 
-    const pastedRows = dataLines.map(line => {
-      const columns = line.replace(/"/g, '').split(sep);
+      // Detect separator: tab or comma
+      const sep = text.includes('\t') ? '\t' : ',';
+      const columns = text.trim().split(sep);
+      
+      if (columns.length === 0) {
+        setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+        return;
+      }
+
+      // Define the exact order you want
+      const fieldOrder = [
+        'accountNo',    // 1. खाते क्र.
+        'pavtiNo',      // 2. पावती क्र.
+        'date',         // 3. दिनांक
+        'name',         // 4. नावं
+        'item',         // 5. वस्तू
+        'goldRate',     // 6. रुपये
+        'sodDate',      // 7. सोड दि
+        'divas',        // 8. दिवस
+        'moparu',       // 9. सो पा क्र
+        'vayaj',        // 10. व्याज
+        'address',      // 11. पत्ता
+        'signature'     // 12. सही (optional)
+      ];
+
+      // Create row data from pasted columns in the specified order
       const row = { ...emptyRow };
-      tableColumns.forEach(col => {
-        if (colMap[col] !== -1) {
-          let val = columns[colMap[col]] || '';
-          // Convert dates if needed
-          if (col === 'date' || col === 'sodDate') val = fromMarathiDate(val);
-          row[col] = val;
+      fieldOrder.forEach((field, index) => {
+        if (columns[index]) {
+          let val = columns[index].trim().replace(/"/g, '');
+          
+          // Convert dates to dd-mm-yyyy format
+          if (field === 'date' || field === 'sodDate') {
+            // If it's in yyyy-mm-dd format, convert to dd-mm-yyyy
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+              const [yyyy, mm, dd] = val.split('-');
+              val = `${dd}-${mm}-${yyyy}`;
+            }
+            // If it's in Marathi format, convert to dd-mm-yyyy
+            else if (/[०१२३४५६७८९]/.test(val)) {
+              val = toDDMMYYYY(fromMarathiDate(val));
+            }
+          }
+          
+          row[field] = val;
         }
       });
-      return row;
-    }).filter(row => Object.values(row).some(val => val)); // Only keep non-empty rows
 
-    if (pastedRows.length === 0) {
-      setSnackbar({ open: true, message: 'पेस्ट करण्यासाठी वैध पंक्ती आढळल्या नाहीत. स्तंभ जुळत असल्याची खात्री करा.', severity: 'error' });
+      // Update the specific row
+      const updatedRows = [...rows];
+      updatedRows[rowIndex] = row;
+      setRows(updatedRows);
+      
+      setSnackbar({ open: true, message: `पंक्ती ${rowIndex + 1} मध्ये डेटा यशस्वीरित्या पेस्ट झाला!`, severity: 'success' });
+
+    } catch (err) {
+      console.error('Failed to paste row:', err);
+      if (err.name === 'NotAllowedError') {
+        setSnackbar({ open: true, message: 'क्लिपबोर्डवरून पेस्ट करण्याची परवानगी नाकारली', severity: 'error' });
+      } else {
+        setSnackbar({ open: true, message: 'पंक्ती पेस्ट करताना त्रुटी आली', severity: 'error' });
+      }
+    }
+  };
+
+  const handlePreviewPaste = async (rowIndex) => {
+    if (!selectedShop) {
+      setSnackbar({ open: true, message: 'कृपया आधी दुकान निवडा', severity: 'warning' });
       return;
     }
-
-    // Update existing rows, add new if needed
-    setRows(prevRows => {
-      const updated = [...prevRows];
-      for (let i = 0; i < pastedRows.length; i++) {
-        if (i < updated.length) {
-          updated[i] = { ...updated[i], ...pastedRows[i] };
-        } else {
-          updated.push({ ...pastedRows[i] });
-        }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+        return;
       }
-      return updated;
-    });
-    setSnackbar({ open: true, message: 'टेबल डेटा यशस्वीरित्या पेस्ट झाला!', severity: 'success' });
 
-  } catch (err) {
-    console.error('Failed to paste:', err);
-    if (err.name === 'NotAllowedError') {
-      setSnackbar({ open: true, message: 'क्लिपबोर्डवरून पेस्ट करण्याची परवानगी नाकारली', severity: 'error' });
-    } else {
-      setSnackbar({ open: true, message: 'डेटा पेस्ट करताना त्रुटी आली', severity: 'error' });
+      // Detect separator: tab or comma
+      const sep = text.includes('\t') ? '\t' : ',';
+      const columns = text.trim().split(sep);
+      
+      if (columns.length === 0) {
+        setSnackbar({ open: true, message: 'क्लिपबोर्डमध्ये पेस्ट करण्यासाठी डेटा नाही', severity: 'warning' });
+        return;
+      }
+
+      // Define the exact order you want
+      const fieldOrder = [
+        'accountNo',    // 1. खाते क्र.
+        'pavtiNo',      // 2. पावती क्र.
+        'date',         // 3. दिनांक
+        'name',         // 4. नावं
+        'item',         // 5. वस्तू
+        'goldRate',     // 6. रुपये
+        'sodDate',      // 7. सोड दि
+        'divas',        // 8. दिवस
+        'moparu',       // 9. सो पा क्र
+        'vayaj',        // 10. व्याज
+        'address',      // 11. पत्ता
+        'signature'     // 12. सही (optional)
+      ];
+
+      // Create preview data from pasted columns in the specified order
+      const previewRowData = {};
+      fieldOrder.forEach((field, index) => {
+        if (columns[index]) {
+          let val = columns[index].trim().replace(/"/g, '');
+          
+          // Convert dates to dd-mm-yyyy format
+          if (field === 'date' || field === 'sodDate') {
+            // If it's in yyyy-mm-dd format, convert to dd-mm-yyyy
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+              const [yyyy, mm, dd] = val.split('-');
+              val = `${dd}-${mm}-${yyyy}`;
+            }
+            // If it's in Marathi format, convert to dd-mm-yyyy
+            else if (/[०१२३४५६७८९]/.test(val)) {
+              val = toDDMMYYYY(fromMarathiDate(val));
+            }
+          }
+          
+          previewRowData[field] = val;
+        } else {
+          previewRowData[field] = '';
+        }
+      });
+
+      setPreviewData(previewRowData);
+      setPreviewDialog({ open: true, rowIdx: rowIndex, data: previewRowData });
+
+    } catch (err) {
+      console.error('Failed to preview paste:', err);
+      if (err.name === 'NotAllowedError') {
+        setSnackbar({ open: true, message: 'क्लिपबोर्डवरून पेस्ट करण्याची परवानगी नाकारली', severity: 'error' });
+      } else {
+        setSnackbar({ open: true, message: 'प्रीव्ह्यू पेस्ट करताना त्रुटी आली', severity: 'error' });
+      }
     }
-  }
-};
+  };
 
+  const handlePreviewDataChange = (field, value) => {
+    setPreviewData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleApplyPreview = () => {
+    const updatedRows = [...rows];
+    
+    // Convert dates from dd-mm-yyyy to yyyy-mm-dd for storage
+    const processedData = { ...previewData };
+    if (processedData.date) {
+      processedData.date = fromDDMMYYYY(processedData.date);
+    }
+    if (processedData.sodDate) {
+      processedData.sodDate = fromDDMMYYYY(processedData.sodDate);
+    }
+    
+    updatedRows[previewDialog.rowIdx] = { ...emptyRow, ...processedData };
+    setRows(updatedRows);
+    setPreviewDialog({ open: false, rowIdx: null, data: null });
+    setPreviewData({});
+    setSnackbar({ open: true, message: `पंक्ती ${previewDialog.rowIdx + 1} मध्ये डेटा यशस्वीरित्या लागू झाला!`, severity: 'success' });
+  };
+
+  const handleClosePreview = () => {
+    setPreviewDialog({ open: false, rowIdx: null, data: null });
+    setPreviewData({});
+    setDraggedItem(null);
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, field) => {
+    setDraggedItem(field);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetField) => {
+    e.preventDefault();
+    if (draggedItem && draggedItem !== targetField) {
+      const draggedValue = previewData[draggedItem];
+      const targetValue = previewData[targetField];
+      
+      setPreviewData(prev => ({
+        ...prev,
+        [draggedItem]: targetValue,
+        [targetField]: draggedValue
+      }));
+    }
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
+  // Draggable field component
+  const DraggableField = ({ field, label, value, onChange, type = "text", multiline = false, rows = 1 }) => {
+    const isDragging = draggedItem === field;
+    
+    return (
+      <Box
+        draggable
+        onDragStart={(e) => handleDragStart(e, field)}
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, field)}
+        onDragEnd={handleDragEnd}
+        sx={{
+          p: 2,
+          border: '2px dashed',
+          borderColor: isDragging ? theme.palette.primary.main : 'transparent',
+          backgroundColor: isDragging ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+          borderRadius: 1,
+          cursor: 'grab',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            borderColor: theme.palette.primary.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+          },
+          '&:active': {
+            cursor: 'grabbing',
+          }
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <DragIndicatorIcon sx={{ mr: 1, color: theme.palette.text.secondary }} />
+          <Typography variant="subtitle2" color="textSecondary">
+            {label}
+          </Typography>
+        </Box>
+        <TextField
+          fullWidth
+          value={value || ''}
+          onChange={(e) => onChange(field, e.target.value)}
+          variant="outlined"
+          size="small"
+          type={type}
+          multiline={multiline}
+          rows={multiline ? rows : undefined}
+          InputLabelProps={type === "date" ? { shrink: true } : undefined}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: 'white',
+            }
+          }}
+        />
+      </Box>
+    );
+  };
 
   // Helper to convert Marathi numerals to regular numbers
   function marathiToNumber(str) {
@@ -878,6 +1091,30 @@ const handlePaste = async () => {
     })
   );
 
+  function toDDMMYYYY(dateStr) {
+    if (!dateStr) return '';
+    // If already in dd-mm-yyyy, return as is
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) return dateStr;
+    // If in yyyy-mm-dd, convert
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [yyyy, mm, dd] = dateStr.split('-');
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    return dateStr;
+  }
+
+  function fromDDMMYYYY(dateStr) {
+    if (!dateStr) return '';
+    // If already in yyyy-mm-dd, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // If in dd-mm-yyyy, convert
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+      const [dd, mm, yyyy] = dateStr.split('-');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return dateStr;
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Inject keyframes for blinking */}
@@ -972,23 +1209,23 @@ const handlePaste = async () => {
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="कॉपी करा">
+        <Tooltip title="पंक्ती कॉपी/पेस्ट करण्यासाठी पंक्ती निवडा">
           <span>
             <IconButton
               onClick={handleCopy}
-              disabled={!selectedShop || rows.length === 0}
-              sx={{ color: theme.palette.success.main, '&:hover': { backgroundColor: alpha(theme.palette.success.main, 0.1) } }}
+              disabled={!selectedShop}
+              sx={{ color: theme.palette.info.main, '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) } }}
             >
               <ContentCopyIcon />
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="पेस्ट करा">
+        <Tooltip title="पंक्ती कॉपी/पेस्ट करण्यासाठी पंक्ती निवडा">
           <span>
             <IconButton
               onClick={handlePaste}
               disabled={!selectedShop}
-              sx={{ color: theme.palette.warning.main, '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) } }}
+              sx={{ color: theme.palette.info.main, '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) } }}
             >
               <ContentPasteIcon />
             </IconButton>
@@ -1033,7 +1270,6 @@ const handlePaste = async () => {
                     {headings.map((heading, idx) => (
                       <TableCell key={idx} align="center" sx={{ fontWeight: 'bold' }}>{heading}</TableCell>
                     ))}
-                    {/* Remove Check No column */}
                     <TableCell align="center">क्रिया</TableCell>
                   </TableRow>
                 </TableHead>
@@ -1160,9 +1396,64 @@ const handlePaste = async () => {
                           />
                         </TableCell>
                         <TableCell align="center">
-                          <IconButton color="error" onClick={() => handleDeleteRow(idx)}>
-                            <DeleteIcon />
-                          </IconButton>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Tooltip title="पंक्ती प्रीव्ह्यू करा">
+                              <IconButton 
+                                size="small"
+                                onClick={() => handlePreviewRow(idx)}
+                                sx={{ 
+                                  color: theme.palette.info.main,
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.info.main, 0.1),
+                                  }
+                                }}
+                              >
+                                <SearchIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="पंक्ती कॉपी करा">
+                              <IconButton 
+                                size="small"
+                                onClick={() => handleCopyRow(idx)}
+                                sx={{ 
+                                  color: theme.palette.success.main,
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                  }
+                                }}
+                              >
+                                <ContentCopyIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="प्रीव्ह्यू सह पेस्ट करा">
+                              <IconButton 
+                                size="small"
+                                onClick={() => handlePreviewPaste(idx)}
+                                sx={{ 
+                                  color: theme.palette.warning.main,
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                                  }
+                                }}
+                              >
+                                <ContentPasteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="पंक्ती हटवा">
+                              <IconButton 
+                                size="small"
+                                color="error" 
+                                onClick={() => handleDeleteRow(idx)}
+                                sx={{ 
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                  }
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     );
@@ -1301,6 +1592,154 @@ const handlePaste = async () => {
         <DialogActions>
           <Button onClick={handleCheckNoCancel}>रद्द करा</Button>
           <Button onClick={handleCheckNoSubmit} variant="contained">जतन करा</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Row Preview Dialog */}
+      <Dialog open={previewDialog.open} onClose={handleClosePreview} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ 
+          backgroundColor: theme.palette.info.main,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <SearchIcon />
+          पंक्ती प्रीव्ह्यू आणि संपादन
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2, textAlign: 'center' }}>
+            डेटा फील्ड्स ड्रॅग करून पुनर्व्यवस्थित करा आणि संपादित करा
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="accountNo"
+                label="खाते क्र."
+                value={previewData.accountNo || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="pavtiNo"
+                label="पावती क्र."
+                value={previewData.pavtiNo || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="date"
+                label="दिनांक"
+                value={toDDMMYYYY(previewData.date) || ''}
+                onChange={(field, value) => handlePreviewDataChange(field, value)}
+                type="text"
+                placeholder="dd-mm-yyyy"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="name"
+                label="नाव"
+                value={previewData.name || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="item"
+                label="वस्तू"
+                value={previewData.item || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="goldRate"
+                label="रुपये"
+                value={previewData.goldRate || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="sodDate"
+                label="सोड दि"
+                value={toDDMMYYYY(previewData.sodDate) || ''}
+                onChange={(field, value) => handlePreviewDataChange(field, value)}
+                type="text"
+                placeholder="dd-mm-yyyy"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="divas"
+                label="दिवस"
+                value={previewData.divas || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="moparu"
+                label="सो पा क्र"
+                value={previewData.moparu || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <DraggableField
+                field="vayaj"
+                label="व्याज"
+                value={previewData.vayaj || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={6}>
+              <DraggableField
+                field="address"
+                label="पत्ता"
+                value={previewData.address || ''}
+                onChange={handlePreviewDataChange}
+                multiline
+                rows={2}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={6}>
+              <DraggableField
+                field="signature"
+                label="सही"
+                value={previewData.signature || ''}
+                onChange={handlePreviewDataChange}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={handleClosePreview}
+            sx={{ 
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.text.secondary, 0.1),
+              }
+            }}
+          >
+            रद्द करा
+          </Button>
+          <Button 
+            onClick={handleApplyPreview} 
+            variant="contained"
+            sx={{
+              backgroundColor: theme.palette.success.main,
+              '&:hover': {
+                backgroundColor: theme.palette.success.dark,
+              },
+            }}
+          >
+            लागू करा
+          </Button>
         </DialogActions>
       </Dialog>
 

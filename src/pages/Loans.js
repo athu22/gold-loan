@@ -25,6 +25,31 @@ import PrintIcon from '@mui/icons-material/Print';
 import { getAllShops, getTableData, getShopSettings, updateClosingBalance, getClosingBalance, saveClosingBalance, getAllCustomerTableRows } from '../firebase/services';
 import {  formatMarathiCurrency, formatMarathiDate } from '../utils/translations';
 
+function getLoanYearAndPeriod(selectedMonth) {
+  // selectedMonth is "YYYY-MM"
+  const [yearStr, monthStr] = selectedMonth.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  // If month >= 6 (June), loan year starts this year, else previous year
+  const startYear = month >= 6 ? year : year - 1;
+  const endYear = startYear + 1;
+
+  return {
+    loanYear: `${startYear}-${String(endYear).slice(-2)}`,
+    period: `01/04/${startYear} ते 31/03/${endYear}`,
+    startYear,
+    endYear,
+  };
+}
+
+function toMarathiNumber(str) {
+  if (!str) return '';
+  const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+  return String(str).replace(/\d/g, d => marathiDigits[d]);
+}
+
+
 function Loans() {
   const [shops, setShops] = useState([]);
   const [selectedShop, setSelectedShop] = useState('');
@@ -43,6 +68,8 @@ function Loans() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+
+  const { loanYear, period } = getLoanYearAndPeriod(selectedMonth);
   
   // Table headings as per your image
   const headings = [
@@ -328,7 +355,7 @@ const handlePrint = () => {
         <div class="print-header">
           <div style="width:100%">
             <div class="shop-name">${selectedShop},${shopAddress}</div>
-                      <div style="text-align:center;font-size:13px;font-weight:bold;">महिना: ${selectedMonthDisplay}</div>
+                      <div style="text-align:center;font-size:13px;font-weight:bold;">सन: ${toMarathiNumber(period)}</div>
             <div class="main-title">रोज किर्द  कैश बुक</div>
           </div>
           <div class="marathi-sentence">${marathiSentence}</div>
